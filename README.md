@@ -1,6 +1,6 @@
 # Simulador PRO HFC/G-PON/XGS-PON
 
-**Versão Prévia 0.38** · by BRENDLER™
+**Versão Prévia 0.39** · by BRENDLER™
 
 Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica (GPON / XGS-PON) que roda direto no navegador, no PC, tablet ou celular deitado, inclusive sem internet.
 
@@ -22,7 +22,7 @@ Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica 
 - Sugestões de correção testadas no projeto (só aparecem as que funcionam).
 - Botão **Novo** (projeto em branco, exemplo ou arquivo), um exemplo por modo, Cenário+ (cenário em branco que salva sozinho), relatório técnico com desenho da topologia e checklist de instalação por tecnologia, salvar como JSON ou como HTML offline com o projeto dentro.
 
-- **Modo GPON / XGS-PON** (chave no topo): origem DIO 8 portas ou NAP de poste/cordoalha com 8 ou 16 portas (cada 8 portas = 1 NAP, com potência e etiqueta próprias; etiqueta do DIO começa com MM, a da NAP nunca), potência em dBm, divisor 1:2 (3,5 dB), PTO (1 entrada e 1 saída, vertical), fibras Drop Low Friction, Cabo Micro Low e Fibra Invisível (metros, sempre 2 conectores), cordão óptico de 1,5 m (1,0 a 1,6 dB), fita autofusão no conector do DIO e da ONT e ONT/ONU com MÍN e MÁX: RX OK de −8 a −27 dBm (fora disso, vermelho; não há faixa amarela). Potência na NAP/DIO esperada de 0 a −25 dBm (fora disso, alerta na origem). Pontos de TV e dispositivos na ONT (4 LAN + Wi-Fi, até 3 pontos de TV), com selo online/offline.
+- **Modo GPON / XGS-PON** (chave no topo): origem DIO 8 portas ou NAP de poste/cordoalha com 8 ou 16 portas (cada 8 portas = 1 NAP, com potência e etiqueta próprias; etiqueta do DIO começa com MM, a da NAP nunca), potência em dBm, divisor 1:2 (3,5 dB), PTO (1 entrada e 1 saída, vertical), fibras Drop Low Friction, Cabo Micro Low e Fibra Invisível (metros, sempre 2 conectores), cordão óptico de 1,5 m (1,0 a 1,6 dB), fita autofusão no conector do DIO e da ONT e ONT/ONU (genérica ou **ZTE F8748Q** XGS-PON: descida 1577 nm, subida 1310/1270 nm; alerta se a origem estiver como GPON) com MÍN e MÁX: RX OK de −8 a −27 dBm (fora disso, vermelho; não há faixa amarela). Potência na NAP/DIO esperada de 0 a −25 dBm (fora disso, alerta na origem). Pontos de TV e dispositivos na ONT (4 LAN + Wi-Fi, até 3 pontos de TV), com selo online/offline.
 
 ## Reportar bug ou falar com o autor
 
