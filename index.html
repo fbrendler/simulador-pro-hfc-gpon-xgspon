@@ -48,6 +48,38 @@
       #zoom-controls { right: 0.5rem !important; bottom: 0.5rem !important; }
       #zoom-controls span:not(#zoom-label) { display: none; }
     }
+    /* Menu ⋯ (só no celular deitado) */
+    #more-wrap { display: none; }
+    .mm-i { width: 100%; display: flex; align-items: center; gap: 0.6rem; text-align: left; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 13px; font-weight: 600; color: #e2e8f0; }
+    .mm-i:hover { background: #1e293b; } .mm-i i { width: 1rem; text-align: center; }
+    html.light .mm-i { color: #0f172a; } html.light .mm-i:hover { background: #e2e8f0; }
+    /* Celular deitado (pouca altura): cabeçalho em uma linha, painel na altura toda do mapa, dock baixo */
+    @media (max-height: 500px) {
+      header { flex-wrap: nowrap !important; height: 2.6rem !important; min-height: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; gap: 0.5rem !important; }
+      header > div:first-child { display: none !important; }
+      header > div:last-child { flex-wrap: nowrap !important; gap: 0.3rem !important; }
+      header [data-hx] { display: none !important; }
+      #more-wrap { display: block; }
+      header button { min-height: 2.1rem; }
+      header .w-8 { width: 2.1rem; height: 2.1rem; }
+      #mode-switch button { padding-top: 0.35rem !important; padding-bottom: 0.35rem !important; }
+      #properties-panel { top: 0 !important; right: 0 !important; bottom: 0 !important; max-height: none !important; width: min(23rem, 60vw) !important;
+        border-radius: 0 !important; border-top: none !important; border-bottom: none !important; border-right: none !important; padding: 0.6rem 0.7rem !important; }
+      body.panel-open #zoom-controls, body.panel-open #minimap, body.panel-open #dock { display: none !important; }
+      #zoom-controls { left: 0.5rem !important; right: auto !important; bottom: 0.5rem !important; }
+      #zoom-controls #snap-btn, #zoom-controls #labels-btn, #zoom-controls #minimap-btn, #zoom-controls > span { display: none !important; }
+      #zoom-controls #organize-btn span, #zoom-controls #organize-btn { font-size: 0; }
+      #zoom-controls #organize-btn i { font-size: 12px; }
+      #dock.h-44 { height: 6.4rem !important; }
+      #dock-cats { width: 7.25rem !important; grid-template-columns: 1fr !important; gap: 0.25rem !important; padding: 0.3rem !important; }
+      #dock-cats button { flex-direction: row !important; justify-content: flex-start !important; gap: 0.45rem !important; padding: 0 0.5rem !important; min-height: 0; }
+      #dock-cats button span { font-size: 9.5px !important; }
+      #dock-items { padding-top: 0.3rem !important; padding-bottom: 0.3rem !important; gap: 0.75rem !important; }
+      #dock-items button.w-24 { width: 4.9rem !important; padding: 0.2rem !important; gap: 0.1rem !important; }
+      #dock-items button.w-24 > span:last-child:not(:only-of-type) { display: none; }
+      #dock-items button.w-24 > div { transform: scale(0.82); }
+      #dock-items > div > span { margin-bottom: 0.1rem !important; }
+    }
     /* Dedo: área de toque maior nas portas e na alça de girar (o desenho continua do mesmo tamanho) */
     @media (pointer: coarse) {
       .port::after { content: ''; position: absolute; inset: -11px; border-radius: 9999px; }
@@ -318,7 +350,7 @@
         </button>
         <div id="scen-menu" class="hidden absolute left-0 top-full mt-1 w-72 max-h-[70vh] overflow-y-auto bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1 z-50" onclick="event.stopPropagation()"></div>
       </div>
-      <button onclick="openNewProject()" title="Novo projeto: em branco, pelo exemplo ou abrindo um arquivo" class="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 mr-1">
+      <button onclick="openNewProject()" data-hx="1" title="Novo projeto: em branco, pelo exemplo ou abrindo um arquivo" class="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 mr-1">
         <i class="fa-solid fa-file-circle-plus"></i>
         <span>Novo</span>
       </button>
@@ -331,7 +363,7 @@
         <span>Diagnóstico</span>
         <span id="diag-badge"></span>
       </button>
-      <button onclick="generateProjectReport()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5">
+      <button onclick="generateProjectReport()" data-hx="1" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5">
         <i class="fa-solid fa-file-invoice"></i>
         <span>Relatório</span>
       </button>
@@ -350,11 +382,11 @@
           </button>
         </div>
       </div>
-      <button onclick="triggerJSONImport()" title="Abrir projeto JSON" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+      <button onclick="triggerJSONImport()" data-hx="1" title="Abrir projeto JSON" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
         <i class="fa-solid fa-upload"></i><span>Abrir</span>
       </button>
       <input type="file" id="json-file-input" accept=".json" class="hidden" onchange="importProjectJSON(event)">
-      <button onclick="clearCanvas()" class="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+      <button onclick="clearCanvas()" data-hx="1" class="px-3 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
         <i class="fa-solid fa-trash-can"></i>
         <span>Limpar</span>
       </button>
@@ -362,8 +394,20 @@
         <button onclick="toggleMenu('help-menu', event)" title="Ajuda: reportar bug, contato" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs transition"><i class="fa-solid fa-circle-question"></i></button>
         <div id="help-menu" class="hidden absolute right-0 top-full mt-1 w-72 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1 z-50" onclick="event.stopPropagation()"></div>
       </div>
-      <button id="theme-btn" onclick="toggleTheme()" title="Tema claro/escuro (T)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs transition"><i class="fa-solid fa-sun"></i></button>
-      <button onclick="togglePanel()" title="Mostrar/ocultar o painel lateral (P)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs transition"><i class="fa-solid fa-table-columns"></i></button>
+      <button id="theme-btn" data-hx="1" onclick="toggleTheme()" title="Tema claro/escuro (T)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs transition"><i class="fa-solid fa-sun"></i></button>
+      <button onclick="togglePanel()" data-hx="1" title="Mostrar/ocultar o painel lateral (P)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs transition"><i class="fa-solid fa-table-columns"></i></button>
+      <!-- Celular deitado: Novo, Relatório, Abrir, Limpar, tema e painel ficam neste menu -->
+      <div class="relative" id="more-wrap">
+        <button id="more-btn" onclick="toggleMenu('more-menu', event)" title="Mais opções" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs transition"><i class="fa-solid fa-ellipsis"></i></button>
+        <div id="more-menu" class="hidden absolute right-0 top-full mt-1 w-56 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-1 z-50" onclick="event.stopPropagation()">
+          <button onclick="closeMoreMenu(); openNewProject()" class="mm-i"><i class="fa-solid fa-file-circle-plus text-violet-400"></i>Novo projeto</button>
+          <button onclick="closeMoreMenu(); generateProjectReport()" class="mm-i"><i class="fa-solid fa-file-invoice text-emerald-400"></i>Relatório</button>
+          <button onclick="closeMoreMenu(); triggerJSONImport()" class="mm-i"><i class="fa-solid fa-upload text-sky-400"></i>Abrir projeto (.json)</button>
+          <button onclick="closeMoreMenu(); toggleTheme()" class="mm-i"><i class="fa-solid fa-circle-half-stroke text-amber-300"></i>Tema claro/escuro</button>
+          <button onclick="closeMoreMenu(); togglePanel()" class="mm-i"><i class="fa-solid fa-table-columns text-slate-300"></i>Mostrar/ocultar o painel</button>
+          <button onclick="closeMoreMenu(); clearCanvas()" class="mm-i text-rose-300"><i class="fa-solid fa-trash-can text-rose-400"></i>Limpar o projeto</button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -443,7 +487,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.47';   // Versão Prévia
+    const APP_VERSION = '0.48';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -5260,7 +5304,7 @@
       if (open) { if (id === 'scen-menu') renderScenarioMenu(); if (id === 'help-menu') renderHelpMenu(); m.classList.remove('hidden'); }
     }
     function closeMenus() {
-      ['save-menu', 'scen-menu', 'help-menu'].forEach(id => { const m = document.getElementById(id); if (m) m.classList.add('hidden'); });
+      ['save-menu', 'scen-menu', 'help-menu', 'more-menu'].forEach(id => { const m = document.getElementById(id); if (m) m.classList.add('hidden'); });
     }
     const closeSaveMenu = closeMenus;
 
@@ -5632,6 +5676,7 @@
       theme = theme === 'light' ? 'dark' : 'light';   // vale até fechar; ao abrir de novo volta ao tema do dispositivo
       applyTheme();
     }
+    function closeMoreMenu() { const m = document.getElementById('more-menu'); if (m) m.classList.add('hidden'); }
     function togglePanel() {
       document.getElementById('properties-panel').classList.toggle('hidden');
       setTimeout(drawMinimap, 0);
@@ -5646,6 +5691,7 @@
       if (!h || !pnl) return;
       const fechado = pnl.classList.contains('hidden');
       h.classList.toggle('fechado', fechado);
+      document.body.classList.toggle('panel-open', !fechado);   // celular deitado: esconde zoom e dock com o painel aberto
       if (fechado) { h.style.right = '0'; h.style.top = '50%'; h.style.transform = 'translateY(-50%)'; }
       else { h.style.right = (pnl.offsetWidth + 12) + 'px'; h.style.top = '1.5rem'; h.style.transform = 'none'; }
       h.title = fechado ? 'Abrir o painel de diagnóstico (P)' : 'Fechar o painel (P)';
