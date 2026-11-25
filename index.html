@@ -138,6 +138,7 @@
     html.light #connect-menu { background: #fff; border-color: #c3ccd8; } html.light #connect-menu .cm-title, html.light #connect-menu .cm-opt b { color: #0f172a; }
     html.light #connect-menu .cm-opt { background: #f8fafc; border-color: #d5dde7; color: #1d4ed8; } html.light #connect-menu .cm-opt small { color: #475569; }
     html.light #connect-menu .cm-alert { color: #92400e; background: #fffbeb; }
+    .port.port-fast { box-shadow: 0 0 0 2px #f59e0b; }
     .port-wifi { display: flex; align-items: center; justify-content: center; font-size: 8px; color: #34d399; }
     /* NAP (caixa azul de poste/cordoalha) e DIO (caixa interna escura) */
     .nap-box { position: relative; border-radius: 0.9rem; padding: 0.6rem 0.7rem 1.35rem; color: #e2e8f0; font-size: 12px;
@@ -442,7 +443,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.46';   // Versão Prévia
+    const APP_VERSION = '0.47';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -698,7 +699,7 @@
     const isDefaultTapName = name => name === 'TAP 23P' || /^TAP Rede externa \d+ vias$/.test(name || '');
 
     function outPorts(node) {
-      if (isGateway(node)) return ONT_PORTS;
+      if (isGateway(node)) return gwPorts(node);
       if (node.type === 'tap') return Array.from({ length: tapVias(node) }, (_, i) => ({ id: 'out' + (i + 1), label: (isCTO(node) ? 'Porta ' : 'Via ') + (i + 1), loss: 0 }));
       const d = NODE_DEFS[node.type];
       return d ? d.outs : [];
@@ -730,7 +731,7 @@
       }
       if (isGateway(node) && portId !== 'in') {   // LAN 1–4 embaixo, Wi-Fi no canto direito
         if (portId === 'wifi') return { x: node.x + s.w, y: node.y + 24, lx: s.w, ly: 24, vx: 1, vy: 0 };
-        const i = Math.max(0, Number(String(portId).replace('lan', '')) - 1), lx = s.w * (i + 1) / (ONT_LANS + 2);
+        const i = Math.max(0, Number(String(portId).replace('lan', '')) - 1), lx = s.w * (i + 1) / (gwSpeeds(node).length + 2);
         return { x: node.x + lx, y: node.y + s.h, lx, ly: s.h, vx: 0, vy: 1 };
       }
       const side = cardSide(node, portId === 'in' ? 'in' : 'out');
@@ -841,7 +842,16 @@
     const WIFI_RSSI_MIN = -60;   // Wi-Fi: rede 5 GHz e RSSI até −60 dBm
     const ONT_LANS = 4, NET_MAX_TV = 3, RJ45_MAX = 100, PATCH_M = 1.5;
     const ONT_PORTS = [1, 2, 3, 4].map(i => ({ id: 'lan' + i, label: 'LAN ' + i, loss: 0 })).concat([{ id: 'wifi', label: 'Wi-Fi', loss: 0, multi: true }]);
+    // Portas LAN de cada modelo (Gbps): F@ST3896 3× 1G + 1× 2,5G · ZTE F6645P 4× 1G + 1× 2,5G · ZTE F8748Q 4× 1G + 1× 10G · ONT genérica 4× 1G
+    const gwSpeeds = n => n.type === 'modem' ? [1, 1, 1, 2.5] : n.model === 'f6645p' ? [1, 1, 1, 1, 2.5] : n.model === 'f8748q' ? [1, 1, 1, 1, 10] : [1, 1, 1, 1];
+    const fmtGbps = g => String(g).replace('.', ',') + ' Gbps';
+    function gwPorts(n) {
+      return gwSpeeds(n).map((g, i) => ({ id: 'lan' + (i + 1), label: `LAN ${i + 1} · ${fmtGbps(g)}`, gbps: g, loss: 0, ...(g > 1 ? { fast: true } : {}) }))
+        .concat([{ id: 'wifi', label: 'Wi-Fi', loss: 0, multi: true }]);
+    }
+    const lanSpec = n => { const sp = gwSpeeds(n), one = sp.filter(g => g === 1).length, fast = sp.filter(g => g > 1); return `LAN ${one}× 1G${fast.map(g => ' + ' + String(g).replace('.', ',') + 'G').join('')}`; };
     const netCount = ontId => connections.filter(c => c.from === ontId && isTvPoint(byId(c.to))).length;
+    const netDevsOn = gwId => connections.filter(c => c.from === gwId && isNetDev(byId(c.to))).length;
     const devCount = ontId => connections.filter(c => c.from === ontId && isNetDev(byId(c.to)) && !isTvPoint(byId(c.to))).length;
     const GW = () => isGpon() ? { na: 'na ONT', da: 'da ONT', A: 'A ONT', por: 'por ONT' } : { na: 'no EMTA', da: 'do EMTA', A: 'O EMTA', por: 'por EMTA' };
     const isGateway = n => !!n && (n.type === 'ont' || n.type === 'modem');   // ONT no GPON, EMTA no HFC
@@ -875,7 +885,7 @@
       if (j && j.err === 'pass') return { st: 'off', text: 'offline · senha incorreta', why: `A senha da rede "${c.ssid}" ${gw} mudou. Conecte de novo com a senha nova.`, pick: c.id };
       if (j && n.type === 'camera') return !netHas24(j.w)
         ? { st: 'off', text: 'offline · rede só 5 GHz', why: `A Câmera Wi-Fi só conecta em 2,4 GHz: escolha a rede IoT ${gw}.`, pick: c.id }
-        : !j.w.iot ? { st: 'warn', text: 'online · use a rede IoT', why: `A Câmera Wi-Fi deve ficar na rede IoT (2,4 GHz) ${gw}.` }
+        : !(j.w.iot || (ont.model === 'f8748q' && !netHas5(j.w))) ? { st: 'warn', text: 'online · use a rede IoT', why: `A Câmera Wi-Fi deve ficar na rede IoT (2,4 GHz) ${gw}.` }
         : { st: 'on', text: 'online', why: `via rede IoT "${j.w.ssid}" ${gw}` };
       if (n.type === 'camera' && !ont.iot) return { st: 'off', text: 'offline · habilitar rede IoT', why: `A Câmera Wi-Fi usa a rede IoT (2,4 GHz): habilite a rede IoT ${ont.type === 'modem' ? 'no' : 'na'} ${ont.name}.`, iot: ont.id };
       if (wifi && n.type === 'camera') return c.band === '5'
@@ -884,7 +894,7 @@
       if (wifi && c.band === '2.4') return { st: 'warn', text: 'online · Wi-Fi 2,4 GHz', why: 'Use a rede 5 GHz. ' + wifiRule() };
       const rssi = sigVal(c.rssi);
       if (wifi && rssi != null && rssi < WIFI_RSSI_MIN) return { st: 'warn', text: `online · RSSI ${fmtDb(rssi)} dBm`, why: `Sinal Wi-Fi fraco: o RSSI deve ser até ${WIFI_RSSI_MIN} dBm (de ${WIFI_RSSI_MIN} para 0). Aproxime o aparelho ou use cabo de rede.` };
-      return { st: 'on', text: 'online', why: wifi ? `via Wi-Fi ${j ? '"' + j.w.ssid + '" ' : ''}${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` : `via ${gponCableLabel(c)} na ${(ONT_PORTS.find(x => x.id === c.fromPort) || {}).label || 'LAN'} ${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` };
+      return { st: 'on', text: 'online', why: wifi ? `via Wi-Fi ${j ? '"' + j.w.ssid + '" ' : ''}${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` : `via ${gponCableLabel(c)} na ${(gwPorts(ont).find(x => x.id === c.fromPort) || {}).label || 'LAN'} ${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` };
     }
     const NET_ST = { on: 'ok', warn: 'warn', off: 'bad' };
     const wifiRule = () => `Wi-Fi: use a rede 5 GHz e RSSI até ${WIFI_RSSI_MIN} dBm.`;
@@ -926,7 +936,7 @@
             </div>
           </div>
           <div class="mt-2">${ns.iot
-            ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); setIoT('${esc(ns.iot)}', true)" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-toggle-on"></i> habilitar rede IoT</button>`
+            ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); openEquipConfig('${esc(ns.iot)}')" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-toggle-on"></i> habilitar rede IoT</button>`
             : ns.box
             ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); openBoxTv('${esc(ns.box)}')" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-tv"></i> ${esc(ns.text.replace('offline · ', ''))}</button>`
             : ns.pick
@@ -1050,7 +1060,7 @@
           ${levelsGridHTML(d)}
           <div class="mt-2 flex justify-between items-center gap-1 text-[12px] [&>span]:text-[11px]"><span class="text-slate-500">dBm</span>${statusBadge(d.status)}</div>
           ${ontTecAlert(n) ? '<div class="mt-1.5 text-[11px] leading-snug text-amber-300"><i class="fa-solid fa-triangle-exclamation"></i> Rede marcada como GPON</div>' : ''}
-          <div class="mt-1.5 pb-2 text-[11px] text-slate-500">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-tv"></i> Pontos de TV: <b class="text-slate-300">${netCount(n.id)}/${NET_MAX_TV}</b>${devCount(n.id) ? ` · dispositivos: <b class="text-slate-300">${devCount(n.id)}</b>` : ''}</div>
+          <div class="mt-1.5 pb-2 text-[11px] text-slate-500">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-ethernet"></i> ${lanSpec(n)}${netDevsOn(n.id) ? ` · aparelhos: <b class="text-slate-300">${netDevsOn(n.id)}</b>` : ''}</div>
         </div>`;
     }
     function renderPTOSVG(n) {
@@ -1529,13 +1539,17 @@
         ] }
       ] },
       { id: 'equip', label: 'Equipamentos', icon: 'fa-hard-drive', groups: [
-        { label: 'Pontos de TV via IP (no EMTA, até 3)', items: [
-          { type: 'boxtv', name: 'Box TV via IP', tag: 'Wi-Fi · RJ45 1,5 m', info: 'Box TV via IP: liga no EMTA por Wi-Fi, pelo cabo RJ45 padrão de 1,5 m ou, para mais longe, por PONTO ULTRA. Clique numa porta LAN ou no Wi-Fi do EMTA e depois no Box TV.' },
-          { type: 'tvapp', name: 'TV APP', tag: 'Wi-Fi · RJ45 1,5 m', info: 'TV APP: Smart TV com o aplicativo de TV. Mesmas regras do Box TV: liga no EMTA por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou, para mais longe, PONTO ULTRA.' },
-          { type: 'soundbox', name: 'Sound Box', tag: 'PONTO ULTRA', info: 'Sound Box: liga no EMTA, de preferência por PONTO ULTRA (cabo de rede em metros). O Wi-Fi funciona, mas não é recomendado.' }
+        { label: 'Internet', items: [{ type: 'modem', name: 'EMTA', tag: 'modelo', info: 'EMTA (HFC): clique para escolher o modelo. Mede CA, CB, RX e TX (padrão TX 38 a 51, RX −12 a 12, CA e CB ≥ 0).' }] },
+        { label: 'TV via IP (até 3 no EMTA)', items: [
+          { type: 'boxtv', name: 'Box TV via IP', tag: 'modelo', info: 'Box TV via IP: clique para escolher o modelo. Liga no EMTA por Wi-Fi (rede escolhida no próprio box), cabo RJ45 1,5 m ou PONTO ULTRA.' },
+          { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga no EMTA por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' },
+          { type: 'soundbox', name: 'Sound Box', tag: '', info: 'Sound Box: liga no EMTA, de preferência por PONTO ULTRA (cabo de rede em metros). O Wi-Fi funciona, mas não é recomendado.' }
         ] },
-        { label: 'Tipo de equipamento do cliente', items: ['modem', 'tv', 'box'].map(t => ({ type: t, name: t === 'box' ? 'Box TV via HFC' : EQUIP[t].label, tag: 'CA CB RX TX', info: `${EQUIP[t].label}: ${EQUIP[t].sub} · padrão TX 38 a 51, RX −12 a 12, CA e CB ≥ 0` })) },
-        { label: 'Dispositivos na rede (EMTA)', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT 2,4' : 'Wi-Fi · ULTRA', info: `${NET_DEV[t].label}: liga no EMTA por Wi-Fi (5 GHz, RSSI até −60 dBm) ou por cabo de rede PONTO ULTRA.` })) },
+        { label: 'TV via HFC (coaxial)', items: [
+          { type: 'tv', name: 'Decoder', tag: 'modelo', info: 'Decoder (coaxial): clique para escolher o modelo. Mede CA, CB, RX e TX; leva MINI ISOLATOR.' },
+          { type: 'box', name: 'Box TV via HFC', tag: 'modelo', info: 'Box TV via HFC (coaxial, RF CABLE): clique para escolher o modelo. Mede CA, CB, RX e TX.' }
+        ] },
+        { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga no EMTA por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
       { id: 'origem', label: 'Origem', icon: 'fa-tower-cell', groups: [
         { label: 'TAP Rede externa', items: TAP_VIAS.map(v => ({ type: 'tap' + v, name: `TAP ${v} vias`, tag: `${v} cabos`, info: `${tapName(v)}: origem do sinal, aceita até ${v} cabos (um por via), com níveis CA/CB/RX/TX editáveis` })) },
@@ -1565,13 +1579,13 @@
         ] }
       ] },
       { id: 'equip', label: 'Equipamentos', icon: 'fa-hard-drive', groups: [
-        { label: 'Pontos de TV (até 3 por ONT)', items: [
-          { type: 'boxtv', name: 'Box TV', tag: 'Wi-Fi · RJ45 1,5 m', info: 'Box TV (redondo): liga na ONT por Wi-Fi ou pelo cabo RJ45 padrão de 1,5 m. Clique numa porta LAN ou no Wi-Fi da ONT e depois no Box TV.' },
-          { type: 'tvapp', name: 'TV APP', tag: 'Wi-Fi · RJ45 1,5 m', info: 'TV APP: Smart TV com o aplicativo de TV. Mesmas regras do Box TV: liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou, para mais longe, PONTO ULTRA.' },
-          { type: 'soundbox', name: 'Sound Box', tag: 'RJ45 em metros', info: 'Sound Box (quadrada): de preferência por cabo RJ45 em metros (conectores inclusos). O Wi-Fi funciona, mas não é recomendado.' }
+        { label: 'Internet', items: [{ type: 'ont', name: 'ONT/ONU', tag: 'modelo', info: 'ONT = ONU: clique para escolher o modelo (genérica, ZTE F6645P G-PON ou ZTE F8748Q XGS-PON). RX OK de −8 a −27 dBm. Com uma ONT selecionada, troca o modelo dela.' }] },
+        { label: 'TV via IP (até 3 por ONT)', items: [
+          { type: 'boxtv', name: 'Box TV', tag: 'modelo', info: 'Box TV: clique para escolher o modelo. Liga na ONT por Wi-Fi (rede escolhida no próprio box) ou pelo cabo RJ45 1,5 m.' },
+          { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' },
+          { type: 'soundbox', name: 'Sound Box', tag: '', info: 'Sound Box (quadrada): de preferência por cabo RJ45 em metros (conectores inclusos). O Wi-Fi funciona, mas não é recomendado.' }
         ] },
-        { label: 'Equipamento do cliente', items: [{ type: 'ont', name: 'ONT/ONU', tag: 'escolher modelo', info: 'ONT = ONU: clique para escolher o modelo (genérica, ZTE F6645P G-PON ou ZTE F8748Q XGS-PON). RX OK de −8 a −27 dBm. Com uma ONT selecionada, troca o modelo dela.' }] },
-        { label: 'Dispositivos na rede (ONT)', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT 2,4' : 'Wi-Fi · ULTRA', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm) ou por cabo de rede PONTO ULTRA.` })) },
+        { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
       { id: 'origem', label: 'Origem', icon: 'fa-tower-cell', groups: [
         { label: 'DIO', items: [{ type: 'dio8', name: 'DIO 8 portas', tag: 'dBm na porta', info: 'DIO 8 portas: origem do sinal óptico; informe a potência medida (0 a −25 dBm). Fibra ligada no DIO leva fita autofusão.' }] },
@@ -1672,6 +1686,8 @@
       const n = byId(id);
       if (!n || n.type !== 'ont') return;
       if ((n.model || '') === (model || '')) { showToast('Esse já é o modelo da ONT selecionada.', 'info'); return; }
+      const nLan = gwSpeeds({ type: 'ont', model }).length, lost = connections.find(c => c.from === n.id && /^lan\d+$/.test(c.fromPort) && Number(c.fromPort.slice(3)) > nLan);
+      if (lost) { showToast(`${byId(lost.to) ? byId(lost.to).name : 'Um aparelho'} está na ${lost.fromPort.toUpperCase().replace('LAN', 'LAN ')}, que não existe ${model ? 'na ' + ONT_MODELS[model].label : 'na ONT genérica'}. Mude de porta antes.`, 'warning'); return; }
       if (model) n.model = model; else delete n.model;
       refresh();
       showToast(`${n.name}: ${model ? ONT_MODELS[model].label + ' (' + ONT_MODELS[model].tec + ')' : 'ONT genérica'}. Os cabos continuam ligados.`, 'success');
@@ -1754,7 +1770,7 @@
           b.innerHTML = `
             <div class="flex-1 flex items-center justify-center">${thumbHTML(item)}</div>
             <span class="text-[10px] font-semibold text-slate-200 leading-tight text-center">${item.name}</span>
-            <span class="text-[9px] font-mono text-sky-300 bg-slate-950 px-1 rounded">${current ? (org ? '✓ no projeto' : '✓ selecionado') : blockedTv ? 'TVs via ' + (projectTvKind() === 'hfc' ? 'HFC' : 'IP') + ' no projeto' : item.tag}</span>`;
+            ${(() => { const t = current ? (org ? '✓ no projeto' : '✓ selecionado') : blockedTv ? 'TVs via ' + (projectTvKind() === 'hfc' ? 'HFC' : 'IP') + ' no projeto' : item.tag; return t ? `<span class="text-[9px] font-mono text-sky-300 bg-slate-950 px-1 rounded">${t}</span>` : ''; })()}`;
           if (blockedTv) { b.style.opacity = '0.4'; b.title = 'As TVs do projeto são todas via HFC ou todas via IP'; }
           if (current) b.dataset.current = '1';
           if (selNode) b.title = current ? 'Este é o passivo selecionado no projeto' : `Trocar o ${selNode.name} por ${item.name}`;
@@ -1829,12 +1845,13 @@
       const m = document.createElement('div');
       m.id = 'connect-menu';
       m.style.maxHeight = (cont.clientHeight - 16) + 'px'; m.style.overflowY = 'auto';
+      if (TV_MODELS_BY[type].length > 5) m.style.width = '30rem';   // muitos modelos: 2 colunas, sem rolar
       m.onmousedown = e => e.stopPropagation();
       m.onclick = e => e.stopPropagation();
       const label = type === 'boxtv' ? 'Box TV via IP' : type === 'box' ? 'Box TV via HFC' : 'Decoder';
       m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-tv"></i> ${troca ? `Modelo do ${esc(troca.name)}` : `Adicionar ${label}`}</div>
-        ${TV_MODELS_BY[type].map(k => `<button class="cm-opt" onclick="pickTvModel('${type}', '${k}')"><i class="fa-solid ${troca && troca.model === k ? 'fa-circle-check' : 'fa-tv'}"></i><span><b>${esc(tvModelLabel(k))}</b><small>${esc(TV_MODELS[k].d)}</small></span></button>`).join('')}
-        ${troca ? '' : `<button class="cm-opt" onclick="pickTvModel('${type}', '')"><i class="fa-solid fa-tv"></i><span><b>Genérico</b><small>sem modelo definido</small></span></button>`}`;
+        <div style="display:grid;grid-template-columns:${TV_MODELS_BY[type].length > 5 ? '1fr 1fr' : '1fr'};column-gap:0.35rem">${TV_MODELS_BY[type].map(k => `<button class="cm-opt" onclick="pickTvModel('${type}', '${k}')"><i class="fa-solid ${troca && troca.model === k ? 'fa-circle-check' : 'fa-tv'}"></i><span><b>${esc(tvModelLabel(k))}</b><small>${esc(TV_MODELS[k].d)}</small></span></button>`).join('')}
+        ${troca ? '' : `<button class="cm-opt" onclick="pickTvModel('${type}', '')"><i class="fa-solid fa-tv"></i><span><b>Genérico</b><small>sem modelo definido</small></span></button>`}</div>`;
       cont.appendChild(m);
       const w = m.offsetWidth, h = m.offsetHeight;
       m.style.left = Math.max(8, Math.min(cont.clientWidth - w - 8, r.left - cr.left)) + 'px';
@@ -2982,6 +2999,7 @@
         b.title = `${port.label}${lossTxt}` + (used && !port.multi ? ` — ligado a ${byId(used.to) ? byId(used.to).name : ''}` : (needLock ? ' — livre: ligue um cabo ou coloque TRAVA LOCK' : ' — clique para puxar um cabo'));
       }
       if (port && port.id === 'wifi') { cls += ' port-wifi'; b.innerHTML = '<i class="fa-solid fa-wifi"></i>'; }
+      if (port && port.fast) cls += ' port-fast';   // LAN 2,5G / 10G
       b.className = cls;
       b.style.left = (pos.lx - 8) + 'px';
       b.style.top = (pos.ly - 8) + 'px';
@@ -3042,7 +3060,7 @@
           ${levelsGridHTML(d)}
           <div class="mt-2 flex justify-between items-center gap-1 text-[12px] [&>span]:text-[11px]">${fixChip(n)}${statusBadge(d.status)}</div>
           ${needsMini(n) ? `<button class="mini-lembrete" onclick="event.stopPropagation(); addMini('${esc(n.id)}')" onmousedown="event.stopPropagation()" title="O MINI ISOLATOR fica sempre entre o cabo e o equipamento"><i class="fa-solid fa-triangle-exclamation"></i> Falta MINI ISOLATOR · colocar</button>` : ''}
-          <div class="mt-1.5 pb-2 text-[11px] text-slate-500">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-tv"></i> Pontos de TV via IP: <b class="text-slate-300">${netCount(n.id)}/${NET_MAX_TV}</b>${devCount(n.id) ? ` · dispositivos: <b class="text-slate-300">${devCount(n.id)}</b>` : ''}</div>
+          <div class="mt-1.5 pb-2 text-[11px] text-slate-500">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-ethernet"></i> ${lanSpec(n)}${netDevsOn(n.id) ? ` · aparelhos: <b class="text-slate-300">${netDevsOn(n.id)}</b>` : ''}</div>
         </div>
       `;
     }
@@ -4368,7 +4386,7 @@
       if (val === 'Wi-Fi') { c.fromPort = 'wifi'; c.length = 0; c.band = c.band || NET_DEV[dev.type].band || '5'; c.rssi = c.rssi == null ? '' : c.rssi; }
       else {
         let port = String(c.fromPort).startsWith('lan') ? c.fromPort : null;
-        if (!port) { const free = ONT_PORTS.find(x => x.id.startsWith('lan') && !portConn(ont.id, x.id)); port = free && free.id; }
+        if (!port) { const free = gwPorts(ont).find(x => x.id.startsWith('lan') && !portConn(ont.id, x.id)); port = free && free.id; }
         if (!port) { showToast('Não há porta LAN livre na ONT.', 'warning'); renderProperties(); return; }
         c.fromPort = port;
         c.length = val === 'RJ45 1,5 m' ? PATCH_M : (c.cableType === 'RJ45' && Number(c.length) > 0 ? c.length : 5);
@@ -4560,7 +4578,7 @@
           <div class="text-[11px] text-slate-400 leading-snug">${ECO_LABEL[model]}${n.type === 'ont' && !n.model ? ' (ONT genérica = G-PON)' : ''}, com os níveis de sinal deste projeto.</div>
           ${cfg ? `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
             <b class="text-slate-200">Rede configurada</b>
-            ${nets.length ? nets.map(w => `<span class="block font-mono truncate">${w.iot ? '<i class="fa-solid fa-microchip text-amber-400"></i>' : '<i class="fa-solid fa-wifi text-sky-400"></i>'} ${esc(w.ssid)} <span class="text-slate-500">· ${esc(w.band)}${w.sec === 'NENHUM' ? ' · aberta' : ''}${w.hidden ? ' · oculta' : ''}</span></span>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
+            ${nets.length ? nets.map(w => `<div class="mt-1"><span class="block truncate"><i class="fa-solid fa-wifi ${w.iot ? 'text-amber-400' : 'text-sky-400'}"></i> <b class="text-slate-100">${esc(w.ssid)}</b> <span class="text-slate-500">· ${esc(wifiBandLabel(w))}${w.iot ? ' · IoT' : ''}${w.hidden ? ' · oculta' : ''}</span></span><span class="block text-slate-400 pl-4">senha: <b class="font-mono text-slate-200">${w.sec === 'NENHUM' ? '(aberta)' : esc(w.pass || '')}</b></span></div>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
           </div>` : ''}
         </div>`;
     }
@@ -4577,16 +4595,16 @@
           ${ontTecAlert(n) ? `<div class="text-[11px] leading-snug text-amber-200 bg-amber-950/70 border border-amber-600/70 rounded-lg px-2 py-1.5"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> <b>Alerta:</b> ${esc(ontTecAlert(n))}</div>` : ''}
         </div>`;
     }
+    // Rede IoT: só mostra o estado; habilitar/desabilitar é na configuração do EMTA/ONT (Acessar página de configuração)
     function iotPanelHTML(g) {
       const cams = connections.filter(c => c.from === g.id && byId(c.to) && byId(c.to).type === 'camera').length;
       return `
-        <div class="border-t border-slate-800 pt-2 space-y-1.5">
+        <div class="border-t border-slate-800 pt-2 space-y-1">
           <div class="flex items-center justify-between gap-2">
             <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Rede IoT (2,4 GHz)</label>
             <span class="net-chip ${g.iot ? 'net-on' : 'net-off'}">● ${g.iot ? 'habilitada' : 'desabilitada'}</span>
           </div>
-          <button onclick="setIoT('${esc(g.id)}', ${!g.iot})" class="w-full py-1.5 rounded-lg border text-[11px] font-bold ${g.iot ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200' : 'bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white'}">${g.iot ? 'Desabilitar rede IoT' : 'Habilitar rede IoT'}</button>
-          <p class="text-[10px] text-slate-500 leading-snug">Necessária para a Câmera Wi-Fi (rede 2,4 GHz).${cams ? ` Câmeras ligadas: ${cams}.` : ''}</p>
+          <p class="text-[10px] text-slate-500 leading-snug">Para a Câmera Wi-Fi. Habilite ou desabilite na página de configuração ${g.type === 'modem' ? 'do EMTA' : 'da ONT'}.${cams ? ` Câmeras: ${cams}.` : ''}</p>
         </div>`;
     }
     function closeConnectMenu() { const m = document.getElementById('connect-menu'); if (m) m.remove(); }
@@ -4628,7 +4646,7 @@
         connectNet._ok = false;
         return;
       }
-      const lan = ONT_PORTS.find(x => x.id.startsWith('lan') && !portConn(gw.id, x.id));
+      const lan = gwPorts(gw).find(x => x.id.startsWith('lan') && !portConn(gw.id, x.id));
       if (!lan) { if (old) connections.push(old); showToast(`Não há porta LAN livre ${GW().na}. Use Wi-Fi ou libere uma porta.`, 'warning'); refresh(); return; }
       if (kind === 'patch') {
         const c = { id: uid('conn'), from: gw.id, fromPort: lan.id, to: dev.id, cableType: 'RJ45 1,5 m', length: PATCH_M };
@@ -4735,7 +4753,7 @@
             <h3 class="font-bold text-sm text-slate-100">Ligação de rede</h3>
             <div class="flex items-center gap-1"><button onclick="deleteSelectedConnection()" class="text-rose-400 hover:text-rose-300 p-1" title="Excluir ligação"><i class="fa-solid fa-trash-can"></i></button>${X}</div>
           </div>
-          <p class="text-[11px] text-slate-300"><b>${esc(ont.name)}</b> · ${esc((ONT_PORTS.find(x => x.id === c.fromPort) || {}).label || '')} <i class="fa-solid fa-arrow-right text-slate-500 mx-1"></i> <b>${esc(dev.name)}</b></p>
+          <p class="text-[11px] text-slate-300"><b>${esc(ont.name)}</b> · ${esc((gwPorts(ont).find(x => x.id === c.fromPort) || {}).label || '')} <i class="fa-solid fa-arrow-right text-slate-500 mx-1"></i> <b>${esc(dev.name)}</b></p>
           <div>
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tipo</label>
             <select onchange="updateCableType(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
@@ -4775,7 +4793,7 @@
           <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">${isTvPoint(n) ? 'Ponto de TV' : 'Dispositivo na rede'}</label>
           <div><span class="net-chip net-${ns.st}">● ${ns.text}</span></div>
           <p class="text-[11px] text-slate-400 leading-snug">${esc(ns.why)}</p>
-          ${ns.iot ? `<button onclick="setIoT('${esc(ns.iot)}', true)" class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-[11px] text-white font-bold">Habilitar rede IoT ${GW().na}</button>` : ''}
+          ${ns.iot ? `<button onclick="openEquipConfig('${esc(ns.iot)}')" class="w-full py-1.5 rounded-lg text-[11px] font-bold" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-sliders"></i> Habilitar a rede IoT na configuração</button>` : ''}
           ${ns.st === 'off' && !ns.iot && !ns.box ? `<button onclick="openConnectMenu('${esc(n.id)}', this)" class="w-full py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-[11px] text-rose-200 font-bold"><i class="fa-solid fa-plug"></i> Conectar (cabo, Wi-Fi ou PONTO ULTRA)</button>` : ''}
           ${c ? `<button data-id="${esc(c.id)}" onclick="selectConnection(this.dataset.id)" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-200 font-semibold">Editar a ligação (${esc(gponCableLabel(c))})</button>` : ''}
           <p class="text-[10px] text-slate-500 leading-snug">${usesPatch(n) ? NET_DEV[n.type].label + ' via IP: Wi-Fi, cabo RJ45 1,5 m ou PONTO ULTRA (acima de 1,5 m).' : n.type === 'soundbox' ? 'Sound Box: de preferência PONTO ULTRA; Wi-Fi não recomendado.' : NET_DEV[n.type].label + ': Wi-Fi ou PONTO ULTRA (cabo de rede em metros).'} ${isTvPoint(n) ? 'Até ' + NET_MAX_TV + ' pontos de TV ' + GW().por + '.' : 'Dispositivo da rede do cliente.'} ${wifiRule()}</p>
