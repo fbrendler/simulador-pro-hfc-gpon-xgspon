@@ -442,7 +442,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.39';   // Versão Prévia
+    const APP_VERSION = '0.40';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -4038,6 +4038,7 @@
             ${isEndpoint(n) ? endpointPropsHTML(n) : ''}
             ${isNetDev(n) ? netDevPanelHTML(n) : ''}
             ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
+            ${isEcoEquip(n) ? ecoPanelHTML(n) : ''}
             ${isGateway(n) ? iotPanelHTML(n) : ''}
             ${isOptPassive(n.type) ? splPropsHTML(n) : NODE_DEFS[n.type] ? passivePropsHTML(n) : ''}
           </div>
@@ -4276,6 +4277,98 @@
       g.iot = !!on;
       refresh();
       showToast(on ? `Rede IoT (2,4 GHz) habilitada ${g.type === 'modem' ? 'no' : 'na'} ${g.name}.` : `Rede IoT desabilitada ${g.type === 'modem' ? 'no' : 'na'} ${g.name}: câmeras Wi-Fi ficam offline.`, on ? 'success' : 'warning');
+    }
+    // --- ECOSSISTEMA: configuração do EMTA/ONT no Simulador de configuração EMTA ONT ---
+    // O simulador do equipamento abre num painel (iframe) com #pro=<JSON em base64url> contendo os níveis
+    // de sinal calculados aqui. Ele responde por postMessage ({type:'eco:state'}) com a rede configurada
+    // (redes Wi-Fi e rede IoT), que fica salva no equipamento do projeto (n.ecoCfg).
+    // Endereço do simulador: ?emta=<url> na barra de endereços (fica salvo) ou o site publicado.
+    const ECO_EMTA_DEFAULT = 'https://simulador-emta-ont.pages.dev/';
+    function ecoEmtaUrl() {
+      try {
+        const q = new URLSearchParams(location.search).get('emta');
+        if (q) localStorage.setItem('ecoEmtaUrl', q);
+        return q || localStorage.getItem('ecoEmtaUrl') || ECO_EMTA_DEFAULT;
+      } catch (e) { return ECO_EMTA_DEFAULT; }
+    }
+    const isEcoEquip = n => !!n && (n.type === 'modem' || n.type === 'ont');
+    // EMTA → F@ST3896 (HFC); ONT ZTE F8748Q → XGS-PON; ONT genérica → ZTE F6645P (G-PON)
+    const ecoModel = n => n.type === 'modem' ? 'hfc' : n.model === 'f8748q' ? 'xgs' : 'gpon';
+    const ECO_LABEL = { hfc: 'Sagemcom F@ST3896', gpon: 'ZTE ZXHN F6645P', xgs: 'ZTE ZXHN F8748Q' };
+    const ecoRound = v => v == null || isNaN(v) ? null : Math.round(v * 100) / 100;
+    function ecoPayload(n) {
+      if (!n.ecoKey) n.ecoKey = uid('eco');
+      const lv = n.lv || {}, model = ecoModel(n);
+      const sig = model === 'hfc'
+        ? { ca: ecoRound(lv.ca), cb: ecoRound(lv.cb), rx: ecoRound(lv.rx), tx: ecoRound(lv.tx) }
+        : { rxMin: ecoRound(lv.min), rxMax: ecoRound(lv.max) };
+      const o = /^https?:$/.test(location.protocol) ? location.origin : '*';
+      return { v: 1, key: n.ecoKey, name: n.name, model, sig, iot: !!n.iot, o };
+    }
+    const ecoB64 = obj => btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    function ecoLink(n) { return ecoEmtaUrl().replace(/#.*$/, '') + '#pro=' + ecoB64(ecoPayload(n)); }
+    let ecoOpenId = null;
+    function openEquipConfig(id) {
+      const n = byId(id);
+      if (!isEcoEquip(n)) return;
+      const url = ecoLink(n);
+      scheduleCommit();   // salva a ecoKey criada agora
+      ecoOpenId = id;
+      let ov = document.getElementById('eco-overlay');
+      if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'eco-overlay';
+        ov.className = 'flex flex-col p-2';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(2,6,23,.8)';
+        document.body.appendChild(ov);
+      }
+      const model = ecoModel(n);
+      ov.innerHTML = `
+        <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-2 text-slate-100" style="border-radius:12px 12px 0 0">
+          <i class="fa-solid fa-sliders text-sky-400"></i>
+          <div class="min-w-0 flex-1 leading-tight">
+            <b class="text-sm block truncate">Configurar ${esc(n.name)} · ${ECO_LABEL[model]}</b>
+            <span class="text-[11px] text-slate-400 block truncate">Níveis de sinal do projeto aplicados no equipamento. A rede Wi-Fi e a rede IoT voltam para o projeto ao salvar.</span>
+          </div>
+          <a href="${esc(url)}" target="_blank" rel="noopener" class="text-xs text-sky-300 hover:text-sky-200 px-2 py-1 border border-slate-700 rounded-lg whitespace-nowrap" title="Abrir em nova aba"><i class="fa-solid fa-up-right-from-square"></i><span class="hidden sm:inline"> Nova aba</span></a>
+          <button onclick="closeEquipConfig()" class="text-xs font-bold px-3 py-1 rounded-lg whitespace-nowrap" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-check"></i> Concluir</button>
+        </div>
+        <iframe src="${esc(url)}" title="Configuração do ${esc(n.name)}" class="flex-1 w-full bg-white border border-slate-700" style="border-radius:0 0 12px 12px;border-top:0" allow="clipboard-write"></iframe>`;
+      ov.style.display = 'flex';
+    }
+    function closeEquipConfig() {
+      const ov = document.getElementById('eco-overlay');
+      if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; }
+      ecoOpenId = null;
+      refresh();
+    }
+    window.addEventListener('message', e => {
+      const d = e.data;
+      if (!d || typeof d !== 'object' || d.v !== 1) return;
+      if (d.type === 'eco:close') { if (ecoOpenId) closeEquipConfig(); return; }
+      if (d.type !== 'eco:state' || typeof d.key !== 'string') return;
+      const n = nodes.find(x => x.ecoKey === d.key);
+      if (!isEcoEquip(n)) return;
+      const nets = Array.isArray(d.nets) ? d.nets.slice(0, 16).map(w => ({ ssid: String(w.ssid || '').slice(0, 64), band: String(w.band || '').slice(0, 20), sec: String(w.sec || '').slice(0, 20), iot: !!w.iot })) : [];
+      const prevIot = !!n.iot;
+      n.ecoCfg = { nets, at: Date.now() };
+      if (typeof d.iot === 'boolean') { if (d.iot) n.iot = true; else delete n.iot; }
+      if (!ecoOpenId) refresh(); else scheduleCommit();
+      if (typeof d.iot === 'boolean' && d.iot !== prevIot) showToast(`Rede IoT ${d.iot ? 'habilitada' : 'desabilitada'} na configuração ${n.type === 'modem' ? 'do' : 'da'} ${n.name}.`, d.iot ? 'success' : 'warning');
+    });
+    function ecoPanelHTML(n) {
+      const cfg = n.ecoCfg, model = ecoModel(n);
+      const nets = cfg && cfg.nets || [];
+      return `
+        <div class="border-t border-slate-800 pt-2 space-y-1.5">
+          <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Configuração do equipamento</label>
+          <button onclick="openEquipConfig('${esc(n.id)}')" class="w-full text-xs font-bold rounded-lg px-2 py-2" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-sliders"></i> Acessar página de configuração</button>
+          <div class="text-[11px] text-slate-400 leading-snug">${ECO_LABEL[model]}${n.type === 'ont' && !n.model ? ' (ONT genérica = G-PON)' : ''}, com os níveis de sinal deste projeto.</div>
+          ${cfg ? `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
+            <b class="text-slate-200">Rede configurada</b>
+            ${nets.length ? nets.map(w => `<span class="block font-mono truncate">${w.iot ? '<i class="fa-solid fa-microchip text-amber-400"></i>' : '<i class="fa-solid fa-wifi text-sky-400"></i>'} ${esc(w.ssid)} <span class="text-slate-500">· ${esc(w.band)}${w.sec === 'NENHUM' ? ' · aberta' : ''}</span></span>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
+          </div>` : ''}
+        </div>`;
     }
     function ontModelPanelHTML(n) {
       const m = ontModel(n);
@@ -4756,7 +4849,7 @@
       return JSON.stringify({
         mode: projectMode,
         limits,
-        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
         connections: connections.map(c => ({ id: c.id, from: c.from, fromPort: c.fromPort, to: c.to, cableType: c.cableType, length: c.length, ...(c.num ? { num: c.num } : {}), ...(c.conectores != null ? { conectores: c.conectores } : {}), ...(c.cableType === 'Wi-Fi' ? { band: c.band || '5', rssi: c.rssi == null ? '' : c.rssi } : {}) }))
       });
     }
@@ -5804,7 +5897,7 @@
         appVersion: 'Versão Prévia ' + APP_VERSION,
         mode: projectMode,
         limits,
-        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
         connections
       };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
