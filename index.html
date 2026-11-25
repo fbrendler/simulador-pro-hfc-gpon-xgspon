@@ -230,6 +230,7 @@
     .dio-azul .nap-foot { margin-top: auto; padding-top: 0.6rem; color: #cbd5e1; }
     .dio-rail { position: absolute; left: 0; top: 52px; bottom: 30px; width: 30px; background: rgba(2,6,23,.4); border-right: 1px solid rgba(148,163,184,.25); }
     .dio-lab { position: absolute; left: 13px; font-size: 9.5px; font-weight: 800; color: #fca5a5; line-height: 16px; } .dio-lab-in { color: #cbd5e1; left: 14px; }
+    .dio-blab { position: absolute; bottom: 13px; width: 18px; text-align: center; font-size: 8.5px; font-weight: 800; color: #86efac; z-index: 1; }
     .dio-grille { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; border-radius: 0 0 0.75rem 0.75rem; background: repeating-linear-gradient(90deg, #0f1f45 0 3px, #1a3263 3px 16px); }
     .port.port-dio.port-free { background: #450a0a; border-color: #ef4444; } .port.port-dio.port-free:hover { box-shadow: 0 0 10px rgba(239,68,68,.8); }
     .port.port-dio.port-used { background: #ef4444; border-color: #fee2e2; }
@@ -553,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.63';   // Versão Prévia
+    const APP_VERSION = '0.64';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -754,13 +755,13 @@
     const isDIO = n => !!n && n.type === 'tap' && n.model === 'cto' && (n.org === 'dio' || n.org === 'mdu');   // caixa interna: DIO (4 portas) ou NAP MDU (8)
     const isMDU = n => isDIO(n) && n.org === 'mdu';
     const isDioAzul = n => isDIO(n) && n.org === 'dio';
-    const DIO_PORTAS = 4, MDU_PORTAS = 8;
-    const DIO_TOP = 70, DIO_STEP = 30, DIO_IN_Y = DIO_TOP + DIO_PORTAS * DIO_STEP + 12;   // DIO azul: portas na lateral esquerda, entrada logo abaixo
+    const DIO_LAT = 4, DIO_BAIXO = 8, DIO_PORTAS = DIO_LAT + DIO_BAIXO, MDU_PORTAS = 8;   // DIO: 4 vermelhas na lateral esquerda + 8 embaixo
+    const DIO_TOP = 70, DIO_STEP = 30, DIO_IN_Y = DIO_TOP + DIO_LAT * DIO_STEP + 12;   // DIO azul: portas 01–04 na lateral esquerda, entrada logo abaixo, 05–12 embaixo
     // Migração HFC → GPON: no projeto HFC dá para trocar o EMTA por uma ONT ligada na fibra (DIO/NAP, fibras, divisor óptico, PTO).
     // A fibra é só para a internet: as TVs via HFC continuam no coaxial.
     const isOptNode = n => !!n && (isCTO(n) || isOptPassive(n.type) || n.type === 'ont');
     const optCtx = n => isGpon() || isOptNode(n);   // peça (ou projeto) na conta óptica
-    const isOptOriginItem = t => /^(ctoc?\d+|dio[48]|mdu8)$/.test(String(t));
+    const isOptOriginItem = t => /^(ctoc?\d+|dio(4|8|12)|mdu8)$/.test(String(t));
     const napMount = n => isCTO(n) && !isDIO(n) ? (n.mount === 'cordoalha' ? 'cordoalha' : 'poste') : null;
     const MOUNT_LABEL = { poste: 'Poste', cordoalha: 'Cordoalha' };
     const potKey = portIdx => portIdx > 8 ? 'pot2' : 'pot';                                 // NAP 16: portas 9–16 = segunda NAP
@@ -857,7 +858,12 @@
         return { x: node.x + s.w, y: node.y + ly, lx: s.w, ly, vx: 1, vy: 0 };
       }
       if (isDioAzul(node)) {   // DIO azul: portas na lateral esquerda, uma embaixo da outra; entrada logo abaixo delas
-        const ly = portId === 'in' ? DIO_IN_Y : DIO_TOP + Math.max(0, Number(String(portId).replace('out', '')) - 1) * DIO_STEP;
+        const i = Math.max(0, Number(String(portId).replace('out', '')) - 1);
+        if (portId !== 'in' && i >= DIO_LAT) {   // 05–12: fileira de baixo
+          const lx = s.w * (i - DIO_LAT + 1) / (DIO_BAIXO + 1);
+          return { x: node.x + lx, y: node.y + s.h, lx, ly: s.h, vx: 0, vy: 1 };
+        }
+        const ly = portId === 'in' ? DIO_IN_Y : DIO_TOP + i * DIO_STEP;
         return { x: node.x, y: node.y + ly, lx: 0, ly, vx: -1, vy: 0 };
       }
       const side = cardSide(node, portId === 'in' ? 'in' : 'out');
@@ -1165,9 +1171,9 @@
       if (isDioAzul(n)) {   // DIO azul (caixa em pé): 4 portas vermelhas na lateral esquerda e a entrada abaixo
         const lab = (t, y, c) => `<span class="dio-lab ${c || ''}" style="top:${y - 8}px">${t}</span>`;
         return `
-        <div class="nap-box dio-azul" style="width:200px;min-height:${DIO_IN_Y + 34}px">
+        <div class="nap-box dio-azul" style="width:200px;min-height:${DIO_IN_Y + 44}px">
           <div class="dio-rail"></div>
-          ${Array.from({ length: DIO_PORTAS }, (_, i) => lab(String(i + 1).padStart(2, '0'), DIO_TOP + i * DIO_STEP)).join('')}${lab('IN', DIO_IN_Y, 'dio-lab-in')}
+          ${Array.from({ length: DIO_LAT }, (_, i) => lab(String(i + 1).padStart(2, '0'), DIO_TOP + i * DIO_STEP)).join('')}${lab('IN', DIO_IN_Y, 'dio-lab-in')}${Array.from({ length: DIO_BAIXO }, (_, i) => `<span class="dio-blab" style="left:${(200 * (i + 1) / (DIO_BAIXO + 1) - 9).toFixed(1)}px">${String(DIO_LAT + i + 1).padStart(2, '0')}</span>`).join('')}
           <div class="nap-head"><span class="nap-name"><i class="fa-solid fa-server"></i> ${esc(n.name)}</span></div>
           <span class="nap-badge dio-badge">DIO · ${esc(n.tec || 'GPON')}</span>
           <div class="nap-rows">${rows}</div>
@@ -1250,7 +1256,7 @@
           <div class="grid grid-cols-2 gap-1.5">${['poste', 'cordoalha'].map(mt => `<button onclick="updateNapMount('${mt}')" class="py-1 rounded-lg border text-[11px] font-bold ${napMount(n) === mt ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">${MOUNT_LABEL[mt]}</button>`).join('')}</div>`}
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tipo e portas</label>
           <div class="grid grid-cols-4 gap-1.5">
-            <button onclick="updateCtoKind('dio', DIO_PORTAS)" ${used > DIO_PORTAS ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isDioAzul(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">DIO 4</button>
+            <button onclick="updateCtoKind('dio', DIO_PORTAS)" ${used > DIO_PORTAS ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isDioAzul(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">DIO 12</button>
             <button onclick="updateCtoKind('mdu', MDU_PORTAS)" ${used > MDU_PORTAS ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isMDU(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">MDU 8</button>
             ${CTO_VIAS.map(v => `<button onclick="updateCtoKind('nap', ${v})" ${v < used ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${!isDIO(n) && v === tapVias(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">NAP ${v}</button>`).join('')}
           </div>
@@ -1402,7 +1408,7 @@
       n.tags = t;
       refresh();
     }
-    // DIO 4 portas, NAP MDU 8 portas, NAP 8 ou NAP 16 (= 2 NAPs de 8)
+    // DIO 12 portas, NAP MDU 8 portas, NAP 8 ou NAP 16 (= 2 NAPs de 8)
     function updateCtoKind(org, v) {
       const n = byId(selectedNodeId);
       if (!n || !isCTO(n)) return;
@@ -1713,7 +1719,7 @@
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
       { id: 'origem', label: 'Origem', icon: 'fa-tower-cell', groups: [
-        { label: 'DIO', items: [{ type: 'dio4', name: 'DIO 4 portas', tag: 'dBm na porta', info: 'DIO azul (caixa em pé): 4 portas vermelhas na lateral esquerda e a entrada da fibra abaixo delas. Origem do sinal óptico; informe a potência medida (0 a −25 dBm). Fibra ligada no DIO leva fita autofusão.' }] },
+        { label: 'DIO', items: [{ type: 'dio12', name: 'DIO 12 portas', tag: 'dBm na porta', info: 'DIO azul (caixa em pé): 4 portas vermelhas na lateral esquerda (01–04), a entrada da fibra abaixo delas e 8 portas embaixo (05–12). Origem do sinal óptico; informe a potência medida (0 a −25 dBm). Fibra ligada no DIO leva fita autofusão.' }] },
         { label: 'NAP MDU', items: [{ type: 'mdu8', name: 'NAP MDU 8 portas', tag: 'dBm na porta', info: 'NAP MDU (prédio, caixa em pé): origem do sinal óptico com 8 portas; informe a potência medida (0 a −25 dBm). Fibra ligada na NAP MDU leva fita autofusão.' }] },
         { label: 'NAP de poste (cada 8 portas = 1 NAP)', items: CTO_VIAS.map(v => ({ type: 'cto' + v, name: `NAP poste ${v}`, tag: `${v} portas`, info: `NAP de poste, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa em pé presa no poste com cinta. Informe a potência medida (0 a −25 dBm).` })) },
         { label: 'NAP de cordoalha', items: CTO_VIAS.map(v => ({ type: 'ctoc' + v, name: `NAP cordoalha ${v}`, tag: `${v} portas`, info: `NAP de cordoalha, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa deitada presa na cordoalha. Informe a potência medida (0 a −25 dBm).` })) }
@@ -1800,8 +1806,8 @@
     const coaxOrigin = () => nodes.find(n => n.type === 'tap' && !isCTO(n)) || null, optOrigin = () => nodes.find(isCTO) || null;
     const projectOrigin = () => isGpon() ? optOrigin() : coaxOrigin() || optOrigin();
     const originFor = t => isGpon() || isOptOriginItem(t) ? optOrigin() : coaxOrigin();   // HFC: TAP/DG (TV) e DIO/NAP (internet)
-    const isOriginItem = t => /^(tap[248]|dg|ctoc?\d+|dio[48]|mdu8)$/.test(String(t));
-    const originKey = n => isDioAzul(n) ? 'dio4' : isMDU(n) ? 'mdu8' : isCTO(n) ? (napMount(n) === 'cordoalha' ? 'ctoc' : 'cto') + tapVias(n) : isDG(n) ? 'dg' : 'tap' + tapVias(n);
+    const isOriginItem = t => /^(tap[248]|dg|ctoc?\d+|dio(4|8|12)|mdu8)$/.test(String(t));
+    const originKey = n => isDioAzul(n) ? 'dio12' : isMDU(n) ? 'mdu8' : isCTO(n) ? (napMount(n) === 'cordoalha' ? 'ctoc' : 'cto') + tapVias(n) : isDG(n) ? 'dg' : 'tap' + tapVias(n);
     function swapOrigin(type) {
       const org = originFor(type);
       if (!org) return false;
@@ -1810,7 +1816,7 @@
       const before = org.name;
       const m = /^(tap|cto)(\d+)$/.exec(type);
       if (type === 'dg') updateOriginType('dg', 4);
-      else if (type === 'dio4') updateCtoKind('dio', DIO_PORTAS);
+      else if (type === 'dio12' || type === 'dio4') updateCtoKind('dio', DIO_PORTAS);
       else if (type === 'mdu8' || type === 'dio8') updateCtoKind('mdu', MDU_PORTAS);
       else if (/^ctoc\d+$/.test(type)) { org.mount = 'cordoalha'; updateCtoKind('nap', Number(type.slice(4))); }
       else if (m && m[1] === 'cto') { org.mount = 'poste'; updateCtoKind('nap', Number(m[2])); }
@@ -1857,7 +1863,7 @@
         const svg = passiveSVG({ type: item.type });
         return `<div style="width:${d.w * k}px;height:${h * k}px"><div style="width:${d.w}px;transform:scale(${k});transform-origin:0 0;pointer-events:none">${svg}</div></div>`;
       }
-      if (item.type === 'dio4') return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="13" y="1" width="23" height="38" rx="3" fill="#23407a" stroke="#0f1f45" stroke-width="1.5"/><rect x="20" y="6" width="12" height="4" rx="1" fill="#f8fafc"/>${[0,1,2,3].map(i => `<circle cx="13" cy="${10 + i * 6}" r="2.4" fill="#ef4444"/>`).join('')}<circle cx="13" cy="35" r="2.4" fill="#94a3b8"/></svg>`;
+      if (item.type === 'dio12') return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="13" y="1" width="23" height="38" rx="3" fill="#23407a" stroke="#0f1f45" stroke-width="1.5"/><rect x="20" y="6" width="12" height="4" rx="1" fill="#f8fafc"/>${[0,1,2,3].map(i => `<circle cx="13" cy="${10 + i * 6}" r="2.4" fill="#ef4444"/>`).join('')}<circle cx="13" cy="35" r="2.4" fill="#94a3b8"/>${[0,1,2,3].map(i => `<rect x="${18 + i * 4.4}" y="35" width="3.2" height="4" fill="#22c55e"/>`).join('')}</svg>`;
       if (item.type === 'mdu8' || item.type === 'dio8') return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="12" y="1" width="24" height="32" rx="4" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/><rect x="15" y="6" width="18" height="8" rx="1" fill="#fbbf24"/><rect x="13" y="33" width="4" height="6" fill="#ef4444"/>${[0,1,2,3].map(i => `<rect x="${18.5 + i * 4.4}" y="33" width="3.4" height="6" fill="#22c55e"/>`).join('')}</svg>`;
       if (/^ctoc\d+$/.test(item.type)) return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="0" y="5" width="48" height="2.5" rx="1" fill="#9ca3af"/><rect x="13" y="4" width="3" height="9" fill="#6b7280"/><rect x="32" y="4" width="3" height="9" fill="#6b7280"/><rect x="5" y="12" width="38" height="20" rx="4" fill="#2459a3" stroke="#0f2a52" stroke-width="1.5"/><rect x="7" y="15" width="4" height="14" rx="1" fill="#0f2a52"/><rect x="37" y="15" width="4" height="14" rx="1" fill="#0f2a52"/><rect x="15" y="19" width="18" height="5" rx="1" fill="#facc15"/></svg>`;
       if (String(item.type).startsWith('cto')) return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="7" y="0" width="7" height="40" rx="2" fill="#78716c"/><rect x="4" y="18" width="16" height="3" fill="#cbd5e1"/><rect x="14" y="3" width="24" height="34" rx="4" fill="#2459a3" stroke="#0f2a52" stroke-width="1.5"/><rect x="17" y="7" width="18" height="5" rx="1" fill="#facc15"/><g fill="#1b4380">${[0,1,2,3].map(i => `<rect x="${18 + i * 4.5}" y="16" width="2" height="15"/>`).join('')}</g></svg>`;
@@ -2137,7 +2143,7 @@
       if (type === 'dg') { vias = 4; model = 'dg'; type = 'tap'; }
       let org = null;
       let mount = null;
-      if (type === 'dio4') { type = 'cto8'; org = 'dio'; }
+      if (type === 'dio12' || type === 'dio4') { type = 'cto8'; org = 'dio'; }
       if (type === 'mdu8' || type === 'dio8') { type = 'cto8'; org = 'mdu'; }
       if (type === 'ontzte') { type = 'ont'; model = 'f8748q'; }
       const cc = /^ctoc(\d+)$/.exec(type);
@@ -3210,7 +3216,7 @@
       }
       if (port && port.id === 'wifi') { cls += ' port-wifi'; b.innerHTML = '<i class="fa-solid fa-wifi"></i>'; }
       if (port && port.fast) cls += ' port-fast';   // LAN 2,5G / 10G
-      if (port && isDioAzul(node)) cls += ' port-dio';   // portas vermelhas do DIO
+      if (port && isDioAzul(node) && Number(String(port.id).replace('out', '')) <= DIO_LAT) cls += ' port-dio';   // portas vermelhas do DIO
       b.className = cls;
       b.style.left = (pos.lx - 8) + 'px';
       b.style.top = (pos.ly - 8) + 'px';
@@ -6583,7 +6589,7 @@
         if (n.type === 'ont' && !ONT_MODELS[n.model]) delete n.model;
         if (n.type === 'tap' && n.model === 'cto') {
           const count = (connections || []).filter(c => c && c.from === n.id).length;
-          if (n.org === 'dio' && (Number(n.vias) !== DIO_PORTAS || count > DIO_PORTAS)) n.org = 'mdu';   // DIO antigo (8 portas) = NAP MDU
+          if (n.org === 'dio' && ![4, DIO_PORTAS].includes(Number(n.vias))) n.org = 'mdu';   // DIO antigo (8 portas) = NAP MDU
           n.vias = n.org === 'dio' ? DIO_PORTAS : CTO_VIAS.includes(Number(n.vias)) ? Number(n.vias) : (CTO_VIAS.find(v => v >= count) || 16);
           if (n.org === 'mdu') n.vias = MDU_PORTAS; else if (n.org !== 'dio') delete n.org;
           if (n.org === 'dio' || n.org === 'mdu') delete n.mount; else n.mount = n.mount === 'cordoalha' ? 'cordoalha' : 'poste';
