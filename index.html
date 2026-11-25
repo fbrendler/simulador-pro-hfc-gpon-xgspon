@@ -223,6 +223,26 @@
       background: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 3px, transparent 3px 9px), linear-gradient(180deg, #2459a3, #1b4380);
       border: 2px solid #0f2a52; box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18); }
     .nap-box.nap-dio { background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 2px, transparent 2px 10px), linear-gradient(180deg, #27324a, #1a2236); border-color: #0b1020; }
+    /* DIO azul em pé (portas vermelhas na lateral esquerda) e NAP MDU (caixa escura em pé) */
+    .nap-box.dio-azul { display: flex; flex-direction: column; padding-left: 2.3rem; background: linear-gradient(180deg, #23407a, #1a3263); border-color: #0f1f45; }
+    .dio-azul .nap-head { margin-bottom: 0.3rem; } .dio-azul .nap-name i { color: #bfdbfe; } .dio-badge { align-self: flex-start; margin-bottom: 0.5rem; }
+    .dio-azul .nap-row, .nap-box.nap-mdu .nap-row { flex-direction: column; align-items: stretch; gap: 0.3rem; } .dio-azul .nap-pot, .nap-box.nap-mdu .nap-pot { text-align: center; }
+    .dio-azul .nap-foot { margin-top: auto; padding-top: 0.6rem; color: #cbd5e1; }
+    .dio-rail { position: absolute; left: 0; top: 52px; bottom: 30px; width: 30px; background: rgba(2,6,23,.4); border-right: 1px solid rgba(148,163,184,.25); }
+    .dio-lab { position: absolute; left: 13px; font-size: 9.5px; font-weight: 800; color: #fca5a5; line-height: 16px; } .dio-lab-in { color: #cbd5e1; left: 14px; }
+    .dio-grille { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; border-radius: 0 0 0.75rem 0.75rem; background: repeating-linear-gradient(90deg, #0f1f45 0 3px, #1a3263 3px 16px); }
+    .port.port-dio.port-free { background: #450a0a; border-color: #ef4444; } .port.port-dio.port-free:hover { box-shadow: 0 0 10px rgba(239,68,68,.8); }
+    .port.port-dio.port-used { background: #ef4444; border-color: #fee2e2; }
+    .port-mdu-in { background: #7f1d1d; border-color: #ef4444; cursor: default; } .port-mdu-in:hover { transform: none; }
+    .port-dio-in { background: #1e293b; border-color: #94a3b8; cursor: default; } .port-dio-in:hover { transform: none; }
+    .nap-box.nap-mdu { min-height: 15.5rem; display: flex; flex-direction: column; color: #334155; border-radius: 1.1rem 1.1rem 0.6rem 0.6rem;
+      background: linear-gradient(180deg, #f1f5f9, #d9dee5); border-color: #94a3b8; box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 1px 0 #fff; }
+    .nap-box.nap-mdu .nap-name { color: #0f172a; } .nap-box.nap-mdu .nap-name i { color: #64748b; } .nap-box.nap-mdu .nap-foot { margin-top: auto; padding-top: 0.6rem; color: #475569; } .nap-box.nap-mdu .nap-foot b { color: #0f172a; }
+    .nap-box.nap-mdu .nap-badge { color: #1c1917; background: #fbbf24; border-color: #b45309; }
+    .nap-box.nap-mdu .nap-tag-dio { background: #fbbf24; border-color: #b45309; color: #1c1917; font-family: Georgia, 'Times New Roman', serif; font-weight: 800; }
+    .nap-box.nap-mdu .nap-pot { background: rgba(15,23,42,.85); }
+    .mdu-ports { position: absolute; left: 6px; right: 6px; bottom: -4px; height: 24px; border-radius: 0 0 0.5rem 0.5rem; background: #cbd5e1; border: 1px solid #94a3b8; }
+    .mdu-elab { position: absolute; bottom: 4px; z-index: 1; font-size: 9px; font-weight: 800; color: #b91c1c; }
     .nap-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.4rem; margin-bottom: 0.45rem; }
     .nap-name { font-weight: 800; font-size: 14px; color: #fff; line-height: 1.15; }
     .nap-name i { color: #fde68a; margin-right: 0.15rem; } .nap-dio .nap-name i { color: #cbd5e1; }
@@ -533,7 +553,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.62';   // Versão Prévia
+    const APP_VERSION = '0.63';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -731,17 +751,21 @@
     const isDG = n => !!n && n.type === 'tap' && n.model === 'dg';
     const isCTO = n => !!n && n.type === 'tap' && n.model === 'cto';
     const CTO_VIAS = [8, 16];
-    const isDIO = n => !!n && n.type === 'tap' && n.model === 'cto' && n.org === 'dio';   // DIO: 8 portas; NAP: 8 ou 16
+    const isDIO = n => !!n && n.type === 'tap' && n.model === 'cto' && (n.org === 'dio' || n.org === 'mdu');   // caixa interna: DIO (4 portas) ou NAP MDU (8)
+    const isMDU = n => isDIO(n) && n.org === 'mdu';
+    const isDioAzul = n => isDIO(n) && n.org === 'dio';
+    const DIO_PORTAS = 4, MDU_PORTAS = 8;
+    const DIO_TOP = 70, DIO_STEP = 30, DIO_IN_Y = DIO_TOP + DIO_PORTAS * DIO_STEP + 12;   // DIO azul: portas na lateral esquerda, entrada logo abaixo
     // Migração HFC → GPON: no projeto HFC dá para trocar o EMTA por uma ONT ligada na fibra (DIO/NAP, fibras, divisor óptico, PTO).
     // A fibra é só para a internet: as TVs via HFC continuam no coaxial.
     const isOptNode = n => !!n && (isCTO(n) || isOptPassive(n.type) || n.type === 'ont');
     const optCtx = n => isGpon() || isOptNode(n);   // peça (ou projeto) na conta óptica
-    const isOptOriginItem = t => /^(ctoc?\d+|dio8)$/.test(String(t));
+    const isOptOriginItem = t => /^(ctoc?\d+|dio[48]|mdu8)$/.test(String(t));
     const napMount = n => isCTO(n) && !isDIO(n) ? (n.mount === 'cordoalha' ? 'cordoalha' : 'poste') : null;
     const MOUNT_LABEL = { poste: 'Poste', cordoalha: 'Cordoalha' };
     const potKey = portIdx => portIdx > 8 ? 'pot2' : 'pot';                                 // NAP 16: portas 9–16 = segunda NAP
-    const napGroups = n => isCTO(n) && !isDIO(n) && tapVias(n) === 16 ? [['pot', 'NAP portas 1–8'], ['pot2', 'NAP portas 9–16']] : [['pot', isDIO(n) ? 'DIO' : 'NAP']];
-    const tapVias = n => isDG(n) ? 4 : isCTO(n) ? (CTO_VIAS.includes(Number(n.vias)) ? Number(n.vias) : 8) : (TAP_VIAS.includes(Number(n.vias)) ? Number(n.vias) : 4);
+    const napGroups = n => isCTO(n) && !isDIO(n) && tapVias(n) === 16 ? [['pot', 'NAP portas 1–8'], ['pot2', 'NAP portas 9–16']] : [['pot', isMDU(n) ? 'NAP MDU' : isDIO(n) ? 'DIO' : 'NAP']];
+    const tapVias = n => isDG(n) ? 4 : isDioAzul(n) ? DIO_PORTAS : isMDU(n) ? MDU_PORTAS : isCTO(n) ? (CTO_VIAS.includes(Number(n.vias)) ? Number(n.vias) : 8) : (TAP_VIAS.includes(Number(n.vias)) ? Number(n.vias) : 4);
     // TX esperado na origem: fora da faixa gera alerta (confirmar com medidor)
     const ORIGIN_TX = {
       tap: { min: 36, max: 43, label: 'TAP', msg: 'Possível rede externa desalinhada, confirme com uso de medidor de sinais.' },
@@ -832,6 +856,10 @@
         const i = Math.max(0, Number(String(portId).replace('lan', '')) - 1), ly = GW_LAN_TOP + i * GW_LAN_STEP;
         return { x: node.x + s.w, y: node.y + ly, lx: s.w, ly, vx: 1, vy: 0 };
       }
+      if (isDioAzul(node)) {   // DIO azul: portas na lateral esquerda, uma embaixo da outra; entrada logo abaixo delas
+        const ly = portId === 'in' ? DIO_IN_Y : DIO_TOP + Math.max(0, Number(String(portId).replace('out', '')) - 1) * DIO_STEP;
+        return { x: node.x, y: node.y + ly, lx: 0, ly, vx: -1, vy: 0 };
+      }
       const side = cardSide(node, portId === 'in' ? 'in' : 'out');
       const P = {
         left:   { lx: 0,       ly: s.h / 2, vx: -1, vy: 0 },
@@ -839,6 +867,10 @@
         top:    { lx: s.w / 2, ly: 0,       vx: 0,  vy: -1 },
         bottom: { lx: s.w / 2, ly: s.h,     vx: 0,  vy: 1 }
       }[side];
+      if (isMDU(node)) {   // NAP MDU: entrada (E) e as 8 portas na fileira de baixo
+        const k = portId === 'in' ? 1 : Number(String(portId).replace('out', '')) + 1;
+        return { x: node.x + s.w * k / (MDU_PORTAS + 2), y: node.y + s.h, lx: s.w * k / (MDU_PORTAS + 2), ly: s.h, vx: 0, vy: 1 };
+      }
       if (node.type === 'tap' && portId !== 'in') {
         const N = tapVias(node), i = Math.max(0, Number(String(portId).replace('out', '')) - 1);
         if (side === 'left' || side === 'right') P.ly = s.h * (i + 1) / (N + 1);
@@ -1066,8 +1098,8 @@
       `<path d="${d}" stroke="${pt.stroke}" stroke-width="${pt.w}" stroke-opacity="${pt.op}" ${pt.dash ? `stroke-dasharray="${pt.dash}"` : ''} fill="none" stroke-linecap="round"/>`).join('');
     const isGponCable = t => !!GPON_CABLES[t];
     const fmt2 = v => (v == null || isNaN(v)) ? '--' : Number(v).toFixed(2);
-    const ctoName = (v, org) => `${org === 'dio' ? 'DIO' : 'NAP'} ${org === 'dio' ? 8 : v} portas`;
-    const isDefaultCtoName = name => /^(CTO|NAP|DIO) \d+ portas$/.test(name || '');
+    const ctoName = (v, org) => org === 'dio' ? `DIO ${DIO_PORTAS} portas` : org === 'mdu' ? `NAP MDU ${MDU_PORTAS} portas` : `NAP ${v} portas`;
+    const isDefaultCtoName = name => /^(CTO|NAP|DIO|NAP MDU) \d+ portas$/.test(name || '');
 
     // Atenuação de uma ligação óptica: drop = metros de fibra + conectores; cordão = perda fixa
     function gponCableLoss(c) {
@@ -1122,7 +1154,7 @@
     function renderCTO(n) {
       const used = connections.filter(c => c.from === n.id).length;
       const al = originAlert(n), keysBad = (al && al.keys) || [];
-      const dio = isDIO(n), groups = napGroups(n), W = (tapVias(n) === 16 ? 330 : 250) + (napMount(n) === 'cordoalha' ? 40 : 0);
+      const dio = isDIO(n), groups = napGroups(n), W = isMDU(n) ? 220 : (tapVias(n) === 16 ? 330 : 250) + (napMount(n) === 'cordoalha' ? 40 : 0);
       const rows = groups.map(([k], i) => {
         const pv = sigVal((n.signals || {})[k]), tag = napTag(n, i);
         return `<div class="nap-row">
@@ -1130,12 +1162,26 @@
             <span class="nap-pot ${keysBad.includes(k) ? 'nap-pot-bad' : ''}">${groups.length > 1 ? `<small>${k === 'pot' ? '1–8' : '9–16'}</small> ` : ''}${pv == null ? '--' : fmt2(pv)} <small>dBm</small></span>
           </div>`;
       }).join('');
+      if (isDioAzul(n)) {   // DIO azul (caixa em pé): 4 portas vermelhas na lateral esquerda e a entrada abaixo
+        const lab = (t, y, c) => `<span class="dio-lab ${c || ''}" style="top:${y - 8}px">${t}</span>`;
+        return `
+        <div class="nap-box dio-azul" style="width:200px;min-height:${DIO_IN_Y + 34}px">
+          <div class="dio-rail"></div>
+          ${Array.from({ length: DIO_PORTAS }, (_, i) => lab(String(i + 1).padStart(2, '0'), DIO_TOP + i * DIO_STEP)).join('')}${lab('IN', DIO_IN_Y, 'dio-lab-in')}
+          <div class="nap-head"><span class="nap-name"><i class="fa-solid fa-server"></i> ${esc(n.name)}</span></div>
+          <span class="nap-badge dio-badge">DIO · ${esc(n.tec || 'GPON')}</span>
+          <div class="nap-rows">${rows}</div>
+          <div class="nap-foot"><span class="nap-laser" title="Radiação laser: não olhe para o conector">⚠</span> Portas em uso: <b>${used}/${tapVias(n)}</b></div>
+          <div class="dio-grille"></div>
+        </div>`;
+      }
       return `
-        <div class="nap-box ${dio ? 'nap-dio' : 'nap-' + napMount(n)}" style="width:${W}px">
+        <div class="nap-box ${dio ? 'nap-dio' + (isMDU(n) ? ' nap-mdu' : '') : 'nap-' + napMount(n)}" style="width:${W}px">
+          ${isMDU(n) ? `<div class="mdu-ports"></div><span class="mdu-elab" style="left:${(W / (MDU_PORTAS + 2) - 4).toFixed(1)}px">E</span>` : ''}
           ${napMount(n) === 'poste' ? '<div class="nap-pole"></div><div class="nap-strap"></div>' : napMount(n) === 'cordoalha' ? '<div class="nap-strand"></div><div class="nap-hanger" style="left:22%"></div><div class="nap-hanger" style="right:22%"></div><div class="nap-grille nap-grille-l"></div><div class="nap-grille nap-grille-r"></div>' : ''}
           <div class="nap-head">
-            <span class="nap-name"><i class="fa-solid ${dio ? 'fa-server' : 'fa-box-archive'}"></i> ${esc(n.name)}</span>
-            <span class="nap-badge">${dio ? 'DIO · ' + esc(n.tec || 'GPON') : MOUNT_LABEL[napMount(n)] + (groups.length > 1 ? ' · 2 NAPs' : '')}</span>
+            <span class="nap-name"><i class="fa-solid ${dio ? 'fa-building' : 'fa-box-archive'}"></i> ${esc(n.name)}</span>
+            <span class="nap-badge">${dio ? 'MDU · ' + esc(n.tec || 'GPON') : MOUNT_LABEL[napMount(n)] + (groups.length > 1 ? ' · 2 NAPs' : '')}</span>
           </div>
           <div class="nap-rows">${rows}</div>
           <div class="nap-foot"><span class="nap-laser" title="Radiação laser: não olhe para o conector">⚠</span> Portas em uso: <b>${used}/${tapVias(n)}</b></div>
@@ -1203,8 +1249,9 @@
           ${isDIO(n) ? '' : `<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Instalação da NAP</label>
           <div class="grid grid-cols-2 gap-1.5">${['poste', 'cordoalha'].map(mt => `<button onclick="updateNapMount('${mt}')" class="py-1 rounded-lg border text-[11px] font-bold ${napMount(n) === mt ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">${MOUNT_LABEL[mt]}</button>`).join('')}</div>`}
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Tipo e portas</label>
-          <div class="grid grid-cols-3 gap-1.5">
-            <button onclick="updateCtoKind('dio', 8)" ${used > 8 ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isDIO(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">DIO 8</button>
+          <div class="grid grid-cols-4 gap-1.5">
+            <button onclick="updateCtoKind('dio', DIO_PORTAS)" ${used > DIO_PORTAS ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isDioAzul(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">DIO 4</button>
+            <button onclick="updateCtoKind('mdu', MDU_PORTAS)" ${used > MDU_PORTAS ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isMDU(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">MDU 8</button>
             ${CTO_VIAS.map(v => `<button onclick="updateCtoKind('nap', ${v})" ${v < used ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${!isDIO(n) && v === tapVias(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">NAP ${v}</button>`).join('')}
           </div>
           <p class="text-[10px] text-slate-400">${used} de ${tapVias(n)} portas em uso.</p>
@@ -1355,17 +1402,18 @@
       n.tags = t;
       refresh();
     }
-    // DIO 8 portas, NAP 8 ou NAP 16 (= 2 NAPs de 8)
+    // DIO 4 portas, NAP MDU 8 portas, NAP 8 ou NAP 16 (= 2 NAPs de 8)
     function updateCtoKind(org, v) {
       const n = byId(selectedNodeId);
       if (!n || !isCTO(n)) return;
-      if (org === 'dio') v = 8;
+      if (org === 'dio') v = DIO_PORTAS;
+      if (org === 'mdu') v = MDU_PORTAS;
       const cs = connections.filter(c => c.from === n.id);
       if (cs.length > v) { showToast(`Há ${cs.length} fibras ligadas: escolha uma origem com pelo menos ${cs.length} portas.`, 'warning'); return; }
       const wasDefault = isDefaultCtoName(n.name);
       const eraDio = isDIO(n);
-      if (org === 'dio') n.org = 'dio'; else delete n.org;
-      if (eraDio !== (org === 'dio')) n.tags = [];   // DIO e NAP têm padrões de etiqueta diferentes
+      if (org === 'dio' || org === 'mdu') n.org = org; else delete n.org;
+      if (eraDio !== isDIO(n)) n.tags = [];   // DIO e NAP têm padrões de etiqueta diferentes
       updateCtoVias(v, true);
       ensureNapTags(n);
       if (wasDefault) n.name = ctoName(v, n.org);
@@ -1380,7 +1428,7 @@
     }
     function updateCtoVias(v, quiet) {
       const n = byId(selectedNodeId);
-      if (!n || !isCTO(n) || !CTO_VIAS.includes(v)) return;
+      if (!n || !isCTO(n) || !(isDioAzul(n) ? v === DIO_PORTAS : isMDU(n) ? v === MDU_PORTAS : CTO_VIAS.includes(v))) return;
       const cs = connections.filter(c => c.from === n.id);
       if (cs.length > v) { showToast(`Há ${cs.length} fibras ligadas: escolha uma origem com pelo menos ${cs.length} portas.`, 'warning'); return; }
       n.vias = v;
@@ -1665,7 +1713,8 @@
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
       { id: 'origem', label: 'Origem', icon: 'fa-tower-cell', groups: [
-        { label: 'DIO', items: [{ type: 'dio8', name: 'DIO 8 portas', tag: 'dBm na porta', info: 'DIO 8 portas: origem do sinal óptico; informe a potência medida (0 a −25 dBm). Fibra ligada no DIO leva fita autofusão.' }] },
+        { label: 'DIO', items: [{ type: 'dio4', name: 'DIO 4 portas', tag: 'dBm na porta', info: 'DIO azul (caixa em pé): 4 portas vermelhas na lateral esquerda e a entrada da fibra abaixo delas. Origem do sinal óptico; informe a potência medida (0 a −25 dBm). Fibra ligada no DIO leva fita autofusão.' }] },
+        { label: 'NAP MDU', items: [{ type: 'mdu8', name: 'NAP MDU 8 portas', tag: 'dBm na porta', info: 'NAP MDU (prédio, caixa em pé): origem do sinal óptico com 8 portas; informe a potência medida (0 a −25 dBm). Fibra ligada na NAP MDU leva fita autofusão.' }] },
         { label: 'NAP de poste (cada 8 portas = 1 NAP)', items: CTO_VIAS.map(v => ({ type: 'cto' + v, name: `NAP poste ${v}`, tag: `${v} portas`, info: `NAP de poste, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa em pé presa no poste com cinta. Informe a potência medida (0 a −25 dBm).` })) },
         { label: 'NAP de cordoalha', items: CTO_VIAS.map(v => ({ type: 'ctoc' + v, name: `NAP cordoalha ${v}`, tag: `${v} portas`, info: `NAP de cordoalha, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa deitada presa na cordoalha. Informe a potência medida (0 a −25 dBm).` })) }
       ] }
@@ -1675,7 +1724,7 @@
       const cat = (P, id) => P.find(c => c.id === id), MIG = ' Migração HFC → GPON: a fibra é só para a internet; as TVs via HFC continuam no coaxial.';
       const gi = (id, label) => cat(PALETTE_GPON, id).groups.find(g => g.label.startsWith(label)).items;
       const mig = it => ({ ...it, info: it.info + MIG });
-      cat(PALETTE, 'origem').groups.push({ label: 'Fibra · migração GPON', items: [...gi('origem', 'DIO'), gi('origem', 'NAP de poste')[0], gi('origem', 'NAP de cordoalha')[0]].map(mig) });
+      cat(PALETTE, 'origem').groups.push({ label: 'Fibra · migração GPON', items: [...gi('origem', 'DIO'), ...gi('origem', 'NAP MDU'), gi('origem', 'NAP de poste')[0], gi('origem', 'NAP de cordoalha')[0]].map(mig) });
       cat(PALETTE, 'cabos').groups.push({ label: 'Fibra · migração GPON', items: gi('cabos', 'Tipo de ligação óptica').map(mig) });
       cat(PALETTE, 'passivos').groups.push({ label: 'Óptico · migração GPON', items: [...gi('passivos', 'Divisor óptico'), ...gi('passivos', 'Terminação óptica')].map(mig) });
       cat(PALETTE, 'equip').groups.find(g => g.label === 'Internet').items.push(mig({ ...gi('equip', 'Internet')[0], name: 'ONT (migração)' }));
@@ -1751,8 +1800,8 @@
     const coaxOrigin = () => nodes.find(n => n.type === 'tap' && !isCTO(n)) || null, optOrigin = () => nodes.find(isCTO) || null;
     const projectOrigin = () => isGpon() ? optOrigin() : coaxOrigin() || optOrigin();
     const originFor = t => isGpon() || isOptOriginItem(t) ? optOrigin() : coaxOrigin();   // HFC: TAP/DG (TV) e DIO/NAP (internet)
-    const isOriginItem = t => /^(tap[248]|dg|ctoc?\d+|dio8)$/.test(String(t));
-    const originKey = n => isDIO(n) ? 'dio8' : isCTO(n) ? (napMount(n) === 'cordoalha' ? 'ctoc' : 'cto') + tapVias(n) : isDG(n) ? 'dg' : 'tap' + tapVias(n);
+    const isOriginItem = t => /^(tap[248]|dg|ctoc?\d+|dio[48]|mdu8)$/.test(String(t));
+    const originKey = n => isDioAzul(n) ? 'dio4' : isMDU(n) ? 'mdu8' : isCTO(n) ? (napMount(n) === 'cordoalha' ? 'ctoc' : 'cto') + tapVias(n) : isDG(n) ? 'dg' : 'tap' + tapVias(n);
     function swapOrigin(type) {
       const org = originFor(type);
       if (!org) return false;
@@ -1761,7 +1810,8 @@
       const before = org.name;
       const m = /^(tap|cto)(\d+)$/.exec(type);
       if (type === 'dg') updateOriginType('dg', 4);
-      else if (type === 'dio8') updateCtoKind('dio', 8);
+      else if (type === 'dio4') updateCtoKind('dio', DIO_PORTAS);
+      else if (type === 'mdu8' || type === 'dio8') updateCtoKind('mdu', MDU_PORTAS);
       else if (/^ctoc\d+$/.test(type)) { org.mount = 'cordoalha'; updateCtoKind('nap', Number(type.slice(4))); }
       else if (m && m[1] === 'cto') { org.mount = 'poste'; updateCtoKind('nap', Number(m[2])); }
       else if (m) updateOriginType('tap', Number(m[2]));
@@ -1807,10 +1857,11 @@
         const svg = passiveSVG({ type: item.type });
         return `<div style="width:${d.w * k}px;height:${h * k}px"><div style="width:${d.w}px;transform:scale(${k});transform-origin:0 0;pointer-events:none">${svg}</div></div>`;
       }
-      if (item.type === 'dio8') return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="12" y="2" width="24" height="36" rx="3" fill="#27324a" stroke="#0b1020" stroke-width="1.5"/><rect x="15" y="7" width="18" height="5" rx="1" fill="#f8fafc"/><rect x="15" y="30" width="18" height="4" fill="#1a2236"/></svg>`;
+      if (item.type === 'dio4') return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="13" y="1" width="23" height="38" rx="3" fill="#23407a" stroke="#0f1f45" stroke-width="1.5"/><rect x="20" y="6" width="12" height="4" rx="1" fill="#f8fafc"/>${[0,1,2,3].map(i => `<circle cx="13" cy="${10 + i * 6}" r="2.4" fill="#ef4444"/>`).join('')}<circle cx="13" cy="35" r="2.4" fill="#94a3b8"/></svg>`;
+      if (item.type === 'mdu8' || item.type === 'dio8') return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="12" y="1" width="24" height="32" rx="4" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1.5"/><rect x="15" y="6" width="18" height="8" rx="1" fill="#fbbf24"/><rect x="13" y="33" width="4" height="6" fill="#ef4444"/>${[0,1,2,3].map(i => `<rect x="${18.5 + i * 4.4}" y="33" width="3.4" height="6" fill="#22c55e"/>`).join('')}</svg>`;
       if (/^ctoc\d+$/.test(item.type)) return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="0" y="5" width="48" height="2.5" rx="1" fill="#9ca3af"/><rect x="13" y="4" width="3" height="9" fill="#6b7280"/><rect x="32" y="4" width="3" height="9" fill="#6b7280"/><rect x="5" y="12" width="38" height="20" rx="4" fill="#2459a3" stroke="#0f2a52" stroke-width="1.5"/><rect x="7" y="15" width="4" height="14" rx="1" fill="#0f2a52"/><rect x="37" y="15" width="4" height="14" rx="1" fill="#0f2a52"/><rect x="15" y="19" width="18" height="5" rx="1" fill="#facc15"/></svg>`;
       if (String(item.type).startsWith('cto')) return `<svg viewBox="0 0 48 40" class="w-12 h-10"><rect x="7" y="0" width="7" height="40" rx="2" fill="#78716c"/><rect x="4" y="18" width="16" height="3" fill="#cbd5e1"/><rect x="14" y="3" width="24" height="34" rx="4" fill="#2459a3" stroke="#0f2a52" stroke-width="1.5"/><rect x="17" y="7" width="18" height="5" rx="1" fill="#facc15"/><g fill="#1b4380">${[0,1,2,3].map(i => `<rect x="${18 + i * 4.5}" y="16" width="2" height="15"/>`).join('')}</g></svg>`;
-      if (String(item.type).startsWith('cto') || item.type === 'dio8') return `<div class="w-10 h-10 rounded-lg bg-emerald-950 border border-emerald-600/50 flex items-center justify-center text-emerald-400 text-base"><i class="fa-solid fa-box-archive"></i></div>`;
+      if (String(item.type).startsWith('cto') || isOptOriginItem(item.type)) return `<div class="w-10 h-10 rounded-lg bg-emerald-950 border border-emerald-600/50 flex items-center justify-center text-emerald-400 text-base"><i class="fa-solid fa-box-archive"></i></div>`;
       if (item.type === 'dg') return `<div class="w-10 h-10 rounded-lg bg-violet-950 border border-violet-600/50 flex items-center justify-center text-violet-400 text-base"><i class="fa-solid fa-server"></i></div>`;
       if (String(item.type).startsWith('tap')) return `<div class="w-10 h-10 rounded-lg bg-sky-950 border border-sky-600/50 flex items-center justify-center text-sky-400 text-base"><i class="fa-solid fa-tower-cell"></i></div>`;
       if (item.type === 'decoder') return thumbHTML({ type: 'tv' });
@@ -2086,13 +2137,14 @@
       if (type === 'dg') { vias = 4; model = 'dg'; type = 'tap'; }
       let org = null;
       let mount = null;
-      if (type === 'dio8') { type = 'cto8'; org = 'dio'; }
+      if (type === 'dio4') { type = 'cto8'; org = 'dio'; }
+      if (type === 'mdu8' || type === 'dio8') { type = 'cto8'; org = 'mdu'; }
       if (type === 'ontzte') { type = 'ont'; model = 'f8748q'; }
       const cc = /^ctoc(\d+)$/.exec(type);
       if (cc) { type = 'cto' + cc[1]; mount = 'cordoalha'; }
       else if (/^cto\d+$/.test(type) && !org) mount = 'poste';
       const cm = /^cto(\d+)$/.exec(type);
-      if (cm) { vias = CTO_VIAS.includes(Number(cm[1])) ? Number(cm[1]) : 8; model = 'cto'; type = 'tap'; }
+      if (cm) { vias = org === 'dio' ? DIO_PORTAS : CTO_VIAS.includes(Number(cm[1])) ? Number(cm[1]) : 8; model = 'cto'; type = 'tap'; }
       let name = NODE_DEFS[type] ? NODE_DEFS[type].label : type.toUpperCase();
       let initSignals = {};
 
@@ -2114,7 +2166,7 @@
 
       // Evita empilhar novos componentes exatamente no mesmo lugar
       const offset = (nodes.length % 8) * 22;
-      const napTags = model === 'cto' ? (org === 'dio' ? [DIO_TAG_PADRAO] : vias === 16 ? [NAP_TAG_PADRAO, nextTag(NAP_TAG_PADRAO)] : [NAP_TAG_PADRAO]) : null;
+      const napTags = model === 'cto' ? (org === 'dio' || org === 'mdu' ? [DIO_TAG_PADRAO] : vias === 16 ? [NAP_TAG_PADRAO, nextTag(NAP_TAG_PADRAO)] : [NAP_TAG_PADRAO]) : null;
       nodes.push({ id, type, name, ...(napTags ? { tags: napTags } : {}), ...(vias ? { vias } : {}), ...(model ? { model } : {}), ...(org ? { org } : {}), ...(mount ? { mount } : {}), x: x != null ? Math.max(0, x) : Math.max(0, (180 + offset - view.x) / view.zoom), y: y != null ? Math.max(0, y) : Math.max(0, (120 + offset - view.y) / view.zoom), signals: initSignals });
       selection.clear();
       selectedNodeId = id;
@@ -3119,6 +3171,12 @@
 
         // Portas clicáveis sobre os conectores
         if (node.type !== 'tap') host.appendChild(makePortEl(node, 'in', null, isTarget));
+        else if (isDioAzul(node) || isMDU(node)) {   // entrada do DIO / da NAP MDU (fibra que chega na caixa): só indicação
+          const e = document.createElement('div'), pp = portPos(node, 'in');
+          e.className = 'port ' + (isMDU(node) ? 'port-mdu-in' : 'port-dio-in'); e.title = isMDU(node) ? 'E (entrada da fibra na NAP MDU)' : 'IN (entrada da fibra no DIO)';
+          e.style.left = (pp.lx - 8) + 'px'; e.style.top = (pp.ly - 8) + 'px';
+          host.appendChild(e);
+        }
         outPorts(node).forEach(p => host.appendChild(makePortEl(node, p.id, p, false)));
 
         // Alça de rotação (aparece no passivo selecionado)
@@ -3152,6 +3210,7 @@
       }
       if (port && port.id === 'wifi') { cls += ' port-wifi'; b.innerHTML = '<i class="fa-solid fa-wifi"></i>'; }
       if (port && port.fast) cls += ' port-fast';   // LAN 2,5G / 10G
+      if (port && isDioAzul(node)) cls += ' port-dio';   // portas vermelhas do DIO
       b.className = cls;
       b.style.left = (pos.lx - 8) + 'px';
       b.style.top = (pos.ly - 8) + 'px';
@@ -6473,7 +6532,7 @@
         parts += `<g>
           <rect x="${n.x}" y="${n.y}" width="${sz.w}" height="${sz.h}" rx="10" fill="${tap ? '#f0f9ff' : '#f8fafc'}" stroke="${stroke}" stroke-width="2"/>
           <text x="${n.x + 12}" y="${n.y + 22}" font-size="13" font-weight="800" fill="#0f172a">${esc(n.name)}</text>
-          <text x="${n.x + 12}" y="${n.y + 37}" font-size="9.5" fill="#475569">${tap ? `${isDG(n) ? 'DG · ' : isCTO(n) ? (isDIO(n) ? 'DIO · ' : 'NAP de ' + MOUNT_LABEL[napMount(n)].toLowerCase() + ' · ') + esc(n.tec || 'GPON') + ' · ' : ''}Origem · ${tapVias(n)} ${isCTO(n) ? 'portas' : 'vias'} (${connections.filter(c => c.from === n.id).length} em uso)` : esc(EQUIP[n.type].label)}</text>
+          <text x="${n.x + 12}" y="${n.y + 37}" font-size="9.5" fill="#475569">${tap ? `${isDG(n) ? 'DG · ' : isCTO(n) ? (isMDU(n) ? 'NAP MDU · ' : isDIO(n) ? 'DIO · ' : 'NAP de ' + MOUNT_LABEL[napMount(n)].toLowerCase() + ' · ') + esc(n.tec || 'GPON') + ' · ' : ''}Origem · ${tapVias(n)} ${isCTO(n) ? 'portas' : 'vias'} (${connections.filter(c => c.from === n.id).length} em uso)` : esc(EQUIP[n.type].label)}</text>
           ${optCtx(n) ? gponReportLines(n, d) : line('ca', 'cb', n.y + 58) + (n.type === 'box' ? '' : line('rx', 'tx', n.y + 76))}
           ${tap ? (originAlert(n) ? `<text x="${n.x + sz.w - 10}" y="${n.y + sz.h - 10}" font-size="10" font-weight="800" fill="#d97706" text-anchor="end">${isCTO(n) ? 'ALERTA NAP' : 'ALERTA TX'}</text>` : '') : `<text x="${n.x + sz.w - 10}" y="${n.y + sz.h - 10}" font-size="10" font-weight="800" fill="${stroke}" text-anchor="end">${ST[d.status].report}</text>`}
         </g>`;
@@ -6524,11 +6583,12 @@
         if (n.type === 'ont' && !ONT_MODELS[n.model]) delete n.model;
         if (n.type === 'tap' && n.model === 'cto') {
           const count = (connections || []).filter(c => c && c.from === n.id).length;
-          n.vias = CTO_VIAS.includes(Number(n.vias)) ? Number(n.vias) : (CTO_VIAS.find(v => v >= count) || 16);
-          if (n.org !== 'dio') delete n.org; else n.vias = 8;
-          if (n.org === 'dio') delete n.mount; else n.mount = n.mount === 'cordoalha' ? 'cordoalha' : 'poste';
+          if (n.org === 'dio' && (Number(n.vias) !== DIO_PORTAS || count > DIO_PORTAS)) n.org = 'mdu';   // DIO antigo (8 portas) = NAP MDU
+          n.vias = n.org === 'dio' ? DIO_PORTAS : CTO_VIAS.includes(Number(n.vias)) ? Number(n.vias) : (CTO_VIAS.find(v => v >= count) || 16);
+          if (n.org === 'mdu') n.vias = MDU_PORTAS; else if (n.org !== 'dio') delete n.org;
+          if (n.org === 'dio' || n.org === 'mdu') delete n.mount; else n.mount = n.mount === 'cordoalha' ? 'cordoalha' : 'poste';
           n.tags = Array.isArray(n.tags) ? n.tags.slice(0, n.vias === 16 ? 2 : 1).map(t => String(t || '').trim().slice(0, 24)) : [];
-          if (n.org !== 'dio' && n.tags.length && n.tags.every(t => !t || NAP_TAG_ANTIGA.includes(t))) n.tags = n.vias === 16 ? [NAP_TAG_PADRAO, nextTag(NAP_TAG_PADRAO)] : [NAP_TAG_PADRAO];
+          if (!n.org && n.tags.length && n.tags.every(t => !t || NAP_TAG_ANTIGA.includes(t))) n.tags = n.vias === 16 ? [NAP_TAG_PADRAO, nextTag(NAP_TAG_PADRAO)] : [NAP_TAG_PADRAO];
           if (isDefaultCtoName(n.name)) n.name = ctoName(n.vias, n.org);
           n.tec = n.tec === 'XGS-PON' ? 'XGS-PON' : 'GPON';
           const pv = sigVal(n.signals.pot), pv2 = sigVal(n.signals.pot2);
