@@ -1,6 +1,6 @@
 # Simulador PRO HFC/G-PON/XGS-PON
 
-**Versão Prévia 0.50** · by BRENDLER™
+**Versão Prévia 0.51** · by BRENDLER™
 
 Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica (GPON / XGS-PON) que roda direto no navegador, no PC, tablet ou celular deitado, inclusive sem internet.
 
@@ -30,6 +30,7 @@ Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica 
 - **Portas LAN por modelo**: F@ST3896 3× 1 Gbps + 1× 2,5 Gbps; ZTE F6645P 4× 1 Gbps + 1× 2,5 Gbps; ZTE F8748Q 4× 1 Gbps + 1× 10 Gbps; ONT genérica 4× 1 Gbps. A porta rápida tem contorno laranja e o cartão mostra o resumo (ex.: LAN 3× 1G + 2,5G).
 - **Rede IoT** só pela página de configuração do EMTA/ONT (o PRO mostra o estado e as redes configuradas com a senha).
 - **Janela do equipamento**: ao clicar num equipamento (EMTA, ONT, Decoder, Box TV, aparelhos de rede), o painel abre em abas: **Resumo** (estado, valores e ações como Acessar página de configuração e Abrir o Box TV), **Sinal** (diagnóstico, como corrigir e o caminho desde o TAP/DIO, recolhível), **Rede** (portas LAN com o que está ligado, redes Wi-Fi com senha, rede IoT) e **Editar** (nome, modelo, sinais no ponto). O botão de estetoscópio no canto de cada cartão abre direto o diagnóstico daquele equipamento, na cor do estado.
+- **Box TV via HFC e Decoder no simulador do box**: o botão **Abrir o Box TV / Abrir o decoder** (aba Resumo) abre o simulador do box no modelo escolhido (Decoder genérico = SAG4KC363) com CA, CB, RX e TX do ponto. Os níveis dos canais, a qualidade e o BER seguem o projeto; sem MINI ISOLATOR a imagem trava; sem sinal no ponto, o box fica sem sinal. Nos decoders SAG/HD o cable modem interno usa o RX e o TX do ponto. O Wi-Fi dos apps usa as redes do EMTA do projeto.
 
 ## Reportar bug ou falar com o autor
 

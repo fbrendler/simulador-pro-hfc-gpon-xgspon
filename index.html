@@ -507,7 +507,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.50';   // Versão Prévia
+    const APP_VERSION = '0.51';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -4116,11 +4116,12 @@
       const acts = [];
       if (isEcoEquip(n)) acts.push(`<button onclick="openEquipConfig('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-sliders"></i> Acessar página de configuração</button>`);
       if (n.type === 'boxtv') acts.push(`<button onclick="openBoxTv('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-tv"></i> Abrir o Box TV</button>`);
+      if (isCoaxTv(n)) acts.push(`<button onclick="openBoxTv('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-tv"></i> Abrir o ${n.type === 'tv' ? 'decoder' : 'Box TV'}</button>`);
       return `
         ${st ? `<div class="space-y-1.5">${st}</div>` : ''}
         ${isNetDev(n) ? netDevPanelHTML(n) : ''}
         ${isGateway(n) ? `<div class="text-[11px] text-slate-300 leading-snug"><i class="fa-solid fa-ethernet text-slate-400"></i> ${lanSpec(n)} · Wi-Fi${n.iot ? ' · rede IoT habilitada' : ''} · aparelhos: ${netDevsOn(n.id)}</div>` : ''}
-        ${n.type === 'boxtv' && n.ecoBox ? `<div class="text-[11px] text-slate-300 leading-snug">Box: ${n.ecoBox.done ? 'instalação concluída' : 'instalação em andamento'}${n.ecoBox.conn ? ` · ${n.ecoBox.conn === 'wifi' ? 'Wi-Fi ' + esc(n.ecoBox.ssid || '') : 'cabo de rede'}` : ''} · <span class="${n.ecoBox.online ? 'text-emerald-400' : 'text-amber-300'}">${n.ecoBox.online ? 'com internet' : 'sem internet'}</span></div>` : ''}
+        ${isBoxSim(n) && n.ecoBox ? `<div class="text-[11px] text-slate-300 leading-snug">Box: ${n.ecoBox.done ? 'instalação concluída' : 'instalação em andamento'}${n.ecoBox.conn ? ` · ${n.ecoBox.conn === 'wifi' ? 'Wi-Fi ' + esc(n.ecoBox.ssid || '') : n.ecoBox.conn === 'cm' ? 'internet pelo cable modem interno' : 'cabo de rede'}` : ''}${isCoaxTv(n) && n.ecoBox.tv != null ? ` · canais: <span class="${n.ecoBox.tv ? 'text-emerald-400' : 'text-rose-400'}">${n.ecoBox.tv === 2 ? 'travando' : n.ecoBox.tv ? 'OK' : 'sem sinal'}</span>` : ''} · <span class="${n.ecoBox.online ? 'text-emerald-400' : 'text-amber-300'}">${n.ecoBox.online ? 'com internet' : 'sem internet'}</span></div>` : ''}
         ${acts.length ? `<div class="space-y-1.5">${acts.join('')}</div>` : ''}
         ${needsMini(n) ? `<button onclick="addMini('${esc(n.id)}')" class="mini-lembrete"><i class="fa-solid fa-triangle-exclamation"></i> Falta MINI ISOLATOR · colocar</button>` : ''}`;
     }
@@ -4706,7 +4707,22 @@
         return q || localStorage.getItem('ecoBoxUrl') || ECO_BOX_DEFAULT;
       } catch (e) { return ECO_BOX_DEFAULT; }
     }
+    // Box TV via HFC e Decoder (coaxial): o box recebe CA/CB/RX/TX do ponto; o Wi-Fi (apps) vem do EMTA do projeto, se houver
+    const isCoaxTv = n => !!n && (n.type === 'box' || n.type === 'tv');
+    const isBoxSim = n => !!n && (n.type === 'boxtv' || isCoaxTv(n));
+    const TV_MODEL_DEFAULT = { boxtv: 'S4KCW3', box: 'S4KCW3', tv: 'SAG4KC363' };   // genérico abre neste modelo no simulador do box
+    function ecoCoaxPayload(n) {
+      if (!n.ecoKey) n.ecoKey = uid('eco');
+      const lv = n.lv || {}, g = nodes.find(isGateway), b = n.ecoBox || {}, nets = ecoNets(g);
+      return { v: 1, key: n.ecoKey, name: n.name, modelo: tvModel(n) || TV_MODEL_DEFAULT[n.type],
+        hfc: { ca: ecoRound(lv.ca), cb: ecoRound(lv.cb), rx: ecoRound(lv.rx), tx: ecoRound(lv.tx), mini: !needsMini(n) },
+        link: 'hfc', gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
+        nets: nets ? nets.map(w => ({ ssid: w.ssid, band: w.band, sec: w.sec, pass: w.pass, iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : null,
+        ...(b.done ? { done: true, ...(b.conn ? { conn: b.conn } : {}), ...(b.conn === 'wifi' ? { ssid: b.ssid || '', pass: b.pass || '' } : {}) } : {}),
+        o: /^https?:$/.test(location.protocol) ? location.origin : '*' };
+    }
     function ecoBoxPayload(n) {
+      if (isCoaxTv(n)) return ecoCoaxPayload(n);
       if (!n.ecoKey) n.ecoKey = uid('eco');
       const c = inputConn(n.id), g = c && byId(c.from), b = n.ecoBox || {};
       const nets = ecoNets(g);
@@ -4717,16 +4733,21 @@
     }
     function openBoxTv(id) {
       const n = byId(id), c = n && inputConn(n.id), g = c && byId(c.from);
+      if (isCoaxTv(n)) {
+        const url = ecoBoxUrl().replace(/#.*$/, '') + '#pro=' + ecoB64(ecoBoxPayload(n)), lv = n.lv;
+        openEcoFrame(id, url, `${n.name} · ${n.type === 'tv' ? 'Decoder' : 'Box TV via HFC'}`, lv && lv.rx != null ? `Sinal do projeto no ponto: CA ${fmt(lv.ca)} · CB ${fmt(lv.cb)} · RX ${fmt(lv.rx)} · TX ${fmt(lv.tx)} dBmV.` : 'Sem sinal no ponto: ligue o cabo coaxial no projeto.');
+        return;
+      }
       if (!n || !isGateway(g)) { showToast(`Ligue o ${n ? n.name : 'Box TV'} ${GW().na} primeiro (Wi-Fi ou cabo de rede).`, 'warning'); return; }
       const url = ecoBoxUrl().replace(/#.*$/, '') + '#pro=' + ecoB64(ecoBoxPayload(n));
       openEcoFrame(id, url, `${n.name} · Box TV`, ecoNets(g) ? `Redes ${g.type === 'modem' ? 'do' : 'da'} ${g.name} no box. A rede escolhida no box volta para o projeto.` : `${g.name} ainda não configurado: o box usa a rede de treino (REDE_CLIENTE).`);
     }
     function ecoBoxMsg(d) {
-      const n = nodes.find(x => x.ecoKey === d.key && x.type === 'boxtv');
+      const n = nodes.find(x => x.ecoKey === d.key && isBoxSim(x));
       if (!n) return;
-      const conn = d.conn === 'wifi' || d.conn === 'cabo' ? d.conn : null;
-      if (typeof d.modelo === 'string' && tvModelOk(n.type, d.modelo) && n.model !== d.modelo && (n.model || d.modelo !== 'S4KCW3')) n.model = d.modelo;   // modelo trocado no box
-      n.ecoBox = { done: !!d.done, conn, online: !!d.online, ...(conn === 'wifi' && typeof d.ssid === 'string' ? { ssid: d.ssid.slice(0, 64), pass: String(d.pass || '').slice(0, 64) } : {}), at: Date.now() };
+      const conn = ['wifi', 'cabo', 'cm'].includes(d.conn) ? d.conn : null;
+      if (typeof d.modelo === 'string' && tvModelOk(n.type, d.modelo) && n.model !== d.modelo && (n.model || d.modelo !== TV_MODEL_DEFAULT[n.type])) n.model = d.modelo;   // modelo trocado no box
+      n.ecoBox = { done: !!d.done, conn, online: !!d.online, ...([0, 1, 2].includes(d.tv) ? { tv: d.tv } : {}), ...(conn === 'wifi' && typeof d.ssid === 'string' ? { ssid: d.ssid.slice(0, 64), pass: String(d.pass || '').slice(0, 64) } : {}), at: Date.now() };
       // Wi-Fi escolhido no box = rede da ligação Wi-Fi do projeto
       const c = inputConn(n.id), g = c && byId(c.from), nets = ecoNets(g);
       if (c && c.cableType === 'Wi-Fi' && conn === 'wifi' && nets && n.ecoBox.ssid) {
