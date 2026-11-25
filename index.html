@@ -533,7 +533,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.58';   // Versão Prévia
+    const APP_VERSION = '0.59';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1620,14 +1620,11 @@
       ] },
       { id: 'equip', label: 'Equipamentos', icon: 'fa-hard-drive', groups: [
         { label: 'Internet', items: [{ type: 'modem', name: 'EMTA', tag: 'modelo', info: 'EMTA (HFC): clique para escolher o modelo. Mede CA, CB, RX e TX (padrão TX 38 a 51, RX −12 a 12, CA e CB ≥ 0).' }] },
-        { label: 'TV via IP (até 3 no EMTA)', items: [
-          { type: 'boxtv', name: 'Box TV via IP', tag: 'modelo', info: 'Box TV via IP: clique para escolher o modelo. Liga no EMTA por Wi-Fi (rede escolhida no próprio box), cabo RJ45 1,5 m ou PONTO ULTRA.' },
-          { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga no EMTA por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' },
-          { type: 'soundbox', name: 'Sound Box', tag: 'modelo', info: 'Sound Box: clique para escolher o modelo. Liga no EMTA, de preferência por PONTO ULTRA (cabo de rede em metros). O Wi-Fi funciona, mas não é recomendado.' }
+        { label: 'Decoder', items: [
+          { type: 'decoder', name: 'Escolha seu decoder', tag: 'modelo', info: 'Decoder: clique para escolher. Via HFC (coaxial): Decoder 4K/HD e Box TV via HFC. Via IP (rede do EMTA, até 3): Box TV via IP e Sound Box. As TVs do projeto são todas via HFC ou todas via IP.' }
         ] },
-        { label: 'TV via HFC (coaxial)', items: [
-          { type: 'tv', name: 'Decoder', tag: 'modelo', info: 'Decoder (coaxial): clique para escolher o modelo. Mede CA, CB, RX e TX; leva MINI ISOLATOR.' },
-          { type: 'box', name: 'Box TV via HFC', tag: 'modelo', info: 'Box TV via HFC (coaxial, RF CABLE): clique para escolher o modelo. A TV vem pelo coaxial (mede CA e CB); a internet vem do EMTA por Wi-Fi ou cabo, escolhida no próprio box.' }
+        { label: 'TV APP', items: [
+          { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Disponível em todos os projetos (HFC ou IP). Liga no EMTA por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' }
         ] },
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga no EMTA por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
@@ -1660,10 +1657,11 @@
       ] },
       { id: 'equip', label: 'Equipamentos', icon: 'fa-hard-drive', groups: [
         { label: 'Internet', items: [{ type: 'ont', name: 'ONT/ONU', tag: 'modelo', info: 'ONT = ONU: clique para escolher o modelo (genérica, ZTE F6645P G-PON ou ZTE F8748Q XGS-PON). RX OK de −8 a −27 dBm. Com uma ONT selecionada, troca o modelo dela.' }] },
-        { label: 'TV via IP (até 3 por ONT)', items: [
-          { type: 'boxtv', name: 'Box TV', tag: 'modelo', info: 'Box TV: clique para escolher o modelo. Liga na ONT por Wi-Fi (rede escolhida no próprio box) ou pelo cabo RJ45 1,5 m.' },
-          { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' },
-          { type: 'soundbox', name: 'Sound Box', tag: 'modelo', info: 'Sound Box (quadrada): clique para escolher o modelo. De preferência por cabo RJ45 em metros (conectores inclusos). O Wi-Fi funciona, mas não é recomendado.' }
+        { label: 'Decoder', items: [
+          { type: 'decoder', name: 'Escolha seu decoder', tag: 'modelo', info: 'Decoder: clique para escolher o Box TV (híbridos ou só IP) ou a Sound Box. Liga na ONT por Wi-Fi (rede escolhida no próprio box) ou cabo de rede; até 3 por ONT.' }
+        ] },
+        { label: 'TV APP', items: [
+          { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' }
         ] },
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
@@ -1816,6 +1814,7 @@
       if (String(item.type).startsWith('cto') || item.type === 'dio8') return `<div class="w-10 h-10 rounded-lg bg-emerald-950 border border-emerald-600/50 flex items-center justify-center text-emerald-400 text-base"><i class="fa-solid fa-box-archive"></i></div>`;
       if (item.type === 'dg') return `<div class="w-10 h-10 rounded-lg bg-violet-950 border border-violet-600/50 flex items-center justify-center text-violet-400 text-base"><i class="fa-solid fa-server"></i></div>`;
       if (String(item.type).startsWith('tap')) return `<div class="w-10 h-10 rounded-lg bg-sky-950 border border-sky-600/50 flex items-center justify-center text-sky-400 text-base"><i class="fa-solid fa-tower-cell"></i></div>`;
+      if (item.type === 'decoder') return thumbHTML({ type: 'tv' });
       if (item.type === 'ontzte') return `<img src="${ONT_MODELS.f8748q.img}" alt="" class="h-10 w-6 object-contain">`;
       if (NET_DEV[item.type]) return `<div class="w-12 h-10 flex items-center justify-center">${netDevSVG(item.type, 46)}</div>`;
       const e = EQUIP[item.type];
@@ -1881,6 +1880,7 @@
           } else {
             b.onclick = () => {
               if (selOnt) { setOntModel(selOnt.id, ONT_ITEM[item.type]); return; }
+              if (item.type === 'decoder') { openDecoderMenu(b); return; }
               if (TV_MODELS_BY[item.type] && !blockedTv) { openModelMenu(item.type, b); return; }
               if (item.type === 'ont' || item.type === 'modem') { openGwMenu(item.type, b); return; }
               if (canSwap(item.type) && swapSelectedPassive(item.type)) return;
@@ -1890,7 +1890,7 @@
                 ? 'Arraste o CABLE ISOLATOR até um cabo RG6 Preto ou RG11 para ligar sozinho.'
                 : 'Arraste o MINI ISOLATOR até um cabo RG6 Branco que chega num EMTA, Decoder ou Box TV.', 'info');
             };
-            b.draggable = true;
+            b.draggable = item.type !== 'decoder';   // o decoder abre a lista de escolha
             b.ondragstart = (e) => { e.dataTransfer.setData('text/plain', item.type); e.dataTransfer.effectAllowed = 'copy'; };
           }
           row.appendChild(b);
@@ -1912,7 +1912,7 @@
     }
 
     // HFC: as TVs do projeto são todas via HFC (Decoder, Box TV coaxial) ou todas via IP (Box TV via IP, Sound Box)
-    const TV_KIND = { tv: 'hfc', box: 'hfc', boxtv: 'ip', tvapp: 'ip', soundbox: 'ip' };
+    const TV_KIND = { tv: 'hfc', box: 'hfc', boxtv: 'ip', soundbox: 'ip' };   // TV APP fica fora da regra: disponível em todos os projetos
     // Modelos de TV do Simulador BOX_TV (mesmos códigos do box.html). Híbridos (HFC + IP) têm "CW" no nome; Z4KCW6/Z4KW6 é só IP;
     // os decoders SAG4KC362/363 (4K) e HHDC2/THDC4 (HD) são só cabo. Sem modelo escolhido = genérico.
     const TV_MODELS = {
@@ -1948,6 +1948,34 @@
       m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-tv"></i> ${troca ? `Modelo do ${esc(troca.name)}` : `Adicionar ${label}`}</div>
         <div style="display:grid;grid-template-columns:${tvMenuModels(type).length > 5 ? '1fr 1fr' : '1fr'};column-gap:0.35rem">${tvMenuModels(type).map(k => `<button class="cm-opt" onclick="pickTvModel('${type}', '${k}')"><i class="fa-solid ${troca && troca.model === k ? 'fa-circle-check' : 'fa-tv'}"></i><span><b>${esc(tvModelLabel(k))}</b><small>${esc(TV_MODELS[k].d)}</small></span></button>`).join('')}
         ${troca ? '' : `<button class="cm-opt" onclick="pickTvModel('${type}', '')"><i class="fa-solid fa-tv"></i><span><b>Genérico</b><small>sem modelo definido</small></span></button>`}</div>`;
+      cont.appendChild(m);
+      const w = m.offsetWidth, h = m.offsetHeight;
+      m.style.left = Math.max(8, Math.min(cont.clientWidth - w - 8, r.left - cr.left)) + 'px';
+      m.style.top = Math.max(8, Math.min(cont.clientHeight - h - 8, r.top - cr.top - h - 6)) + 'px';
+      setTimeout(() => document.addEventListener('mousedown', closeConnectMenu, { once: true }), 0);
+    }
+    // "Escolha seu decoder": um só item no dock com todos os equipamentos de TV, separados em via HFC (coaxial) e via IP
+    function openDecoderMenu(anchor) {
+      const sel = selectedNodeId && selection.size <= 1 ? byId(selectedNodeId) : null;
+      if (sel && TV_MODELS_BY[sel.type]) { openModelMenu(sel.type, anchor); return; }   // decoder selecionado: troca o modelo dele
+      closeConnectMenu();
+      const cont = document.getElementById('canvas-container');
+      if (!cont) return;
+      const cr = cont.getBoundingClientRect(), r = anchor.getBoundingClientRect(), kind = isGpon() ? null : projectTvKind();
+      const TIPO = { tv: 'Decoder coaxial', box: 'Box TV via HFC', boxtv: isGpon() ? 'Box TV' : 'Box TV via IP', soundbox: 'Sound Box' };
+      const opt = (type, k, off) => `<button class="cm-opt" ${off ? 'disabled style="opacity:.4;cursor:not-allowed"' : `onclick="pickTvModel('${type}', '${k}')"`}><i class="fa-solid fa-tv"></i><span><b>${k ? esc(tvModelLabel(k)) : 'Genérico'}</b><small>${esc(TIPO[type])}${k ? ' · ' + esc(TV_MODELS[k].d) : ' · sem modelo definido'}</small></span></button>`;
+      const sec = (t, types, off, gen) => `<div style="grid-column:1/-1;font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#7dd3fc;padding:6px 2px 2px">${t}${off ? ` <span style="color:#fbbf24;text-transform:none;letter-spacing:0">· o projeto já tem TVs via ${kind === 'hfc' ? 'HFC' : 'IP'}</span>` : ''}</div>`
+        + types.map(ty => tvMenuModels(ty).map(k => opt(ty, k, off)).join('')).join('') + opt(gen, '', off);
+      const m = document.createElement('div');
+      m.id = 'connect-menu';
+      m.style.width = '30rem'; m.style.maxHeight = (cont.clientHeight - 16) + 'px'; m.style.overflowY = 'auto';
+      m.onmousedown = e => e.stopPropagation();
+      m.onclick = e => e.stopPropagation();
+      m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-tv"></i> Escolha seu decoder</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;column-gap:0.35rem">
+          ${isGpon() ? '' : sec('Via HFC (cabo coaxial)', ['tv', 'box'], kind === 'ip', 'tv')}
+          ${sec(isGpon() ? 'Via IP (rede da ONT)' : 'Via IP (rede do EMTA, até 3)', ['boxtv', 'soundbox'], kind === 'hfc', 'boxtv')}
+        </div>`;
       cont.appendChild(m);
       const w = m.offsetWidth, h = m.offsetHeight;
       m.style.left = Math.max(8, Math.min(cont.clientWidth - w - 8, r.left - cr.left)) + 'px';
@@ -2023,8 +2051,8 @@
     function addNode(type, x, y) {
       if (!isGpon() && TV_KIND[type] && projectTvKind() && projectTvKind() !== TV_KIND[type]) {
         showToast(projectTvKind() === 'hfc'
-          ? 'Este projeto já tem TV via HFC (Decoder ou Box TV coaxial). As TVs são todas via HFC ou todas via IP: remova as TVs via HFC para usar Box TV via IP, TV APP ou Sound Box.'
-          : 'Este projeto já tem TV via IP (Box TV via IP, TV APP ou Sound Box). As TVs são todas via HFC ou todas via IP: remova as TVs via IP para usar Decoder ou Box TV via HFC.', 'warning');
+          ? 'Este projeto já tem TV via HFC (Decoder ou Box TV coaxial). As TVs são todas via HFC ou todas via IP: remova as TVs via HFC para usar Box TV via IP ou Sound Box.'
+          : 'Este projeto já tem TV via IP (Box TV via IP ou Sound Box). As TVs são todas via HFC ou todas via IP: remova as TVs via IP para usar Decoder ou Box TV via HFC.', 'warning');
         return;
       }
       const id = 'node_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
