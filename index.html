@@ -442,7 +442,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.40';   // Versão Prévia
+    const APP_VERSION = '0.41';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -844,6 +844,21 @@
     const devCount = ontId => connections.filter(c => c.from === ontId && isNetDev(byId(c.to)) && !isTvPoint(byId(c.to))).length;
     const GW = () => isGpon() ? { na: 'na ONT', da: 'da ONT', A: 'A ONT', por: 'por ONT' } : { na: 'no EMTA', da: 'do EMTA', A: 'O EMTA', por: 'por EMTA' };
     const isGateway = n => !!n && (n.type === 'ont' || n.type === 'modem');   // ONT no GPON, EMTA no HFC
+    // Wi-Fi com a rede configurada no EMTA/ONT (Acessar página de configuração): o aparelho só fica online
+    // na rede escolhida (c.ssid) com a senha certa (c.wpass). Sem configuração, vale só a banda (c.band).
+    const ecoNets = g => g && g.ecoCfg && Array.isArray(g.ecoCfg.nets) ? g.ecoCfg.nets : null;
+    const netHas5 = w => /(^|\D)(5|6)GHz/.test(w.band || '');
+    const netHas24 = w => /2\.4/.test(w.band || '');
+    const wifiBandLabel = w => String(w.band || '').replace(/2\.4/g, '2,4').replace(/GHz/g, ' GHz');
+    function wifiJoin(c, g) {
+      const nets = ecoNets(g);
+      if (!nets || !c || c.cableType !== 'Wi-Fi') return null;
+      if (!c.ssid) return { err: 'pick' };
+      const w = nets.find(x => x.ssid === c.ssid);
+      if (!w) return { err: 'gone' };
+      if (w.sec !== 'NENHUM' && w.pass !== (c.wpass || '')) return { err: 'pass', w };
+      return { w };
+    }
     // Online quando ligado numa ONT com sinal OK
     function netState(n) {
       const c = inputConn(n.id), ont = c && byId(c.from);
@@ -851,6 +866,14 @@
       if (!['ok', 'warn'].includes(statusOf(ont))) return { st: 'off', text: 'offline', why: `${ont.name} sem sinal OK.` };
       const wifi = c.cableType === 'Wi-Fi';
       if (wifi && n.type === 'soundbox') return { st: 'warn', text: 'online · Wi-Fi não recomendado', why: 'Prefira cabo de rede (PONTO ULTRA) para a Sound Box. ' + wifiRule() };
+      const j = wifi ? wifiJoin(c, ont) : null, gw = `${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}`;
+      if (j && j.err === 'pick') return { st: 'off', text: 'offline · escolher rede Wi-Fi', why: `Escolha a rede Wi-Fi ${gw} e digite a senha.`, pick: c.id };
+      if (j && j.err === 'gone') return { st: 'off', text: 'offline · rede não encontrada', why: `A rede "${c.ssid}" não existe mais ${gw} (nome alterado ou rede desligada). Conecte de novo.`, pick: c.id };
+      if (j && j.err === 'pass') return { st: 'off', text: 'offline · senha incorreta', why: `A senha da rede "${c.ssid}" ${gw} mudou. Conecte de novo com a senha nova.`, pick: c.id };
+      if (j && n.type === 'camera') return !netHas24(j.w)
+        ? { st: 'off', text: 'offline · rede só 5 GHz', why: `A Câmera Wi-Fi só conecta em 2,4 GHz: escolha a rede IoT ${gw}.`, pick: c.id }
+        : !j.w.iot ? { st: 'warn', text: 'online · use a rede IoT', why: `A Câmera Wi-Fi deve ficar na rede IoT (2,4 GHz) ${gw}.` }
+        : { st: 'on', text: 'online', why: `via rede IoT "${j.w.ssid}" ${gw}` };
       if (n.type === 'camera' && !ont.iot) return { st: 'off', text: 'offline · habilitar rede IoT', why: `A Câmera Wi-Fi usa a rede IoT (2,4 GHz): habilite a rede IoT ${ont.type === 'modem' ? 'no' : 'na'} ${ont.name}.`, iot: ont.id };
       if (wifi && n.type === 'camera') return c.band === '5'
         ? { st: 'warn', text: 'online · use 2,4 GHz', why: 'A Câmera Wi-Fi usa a rede 2,4 GHz.' }
@@ -858,7 +881,7 @@
       if (wifi && c.band === '2.4') return { st: 'warn', text: 'online · Wi-Fi 2,4 GHz', why: 'Use a rede 5 GHz. ' + wifiRule() };
       const rssi = sigVal(c.rssi);
       if (wifi && rssi != null && rssi < WIFI_RSSI_MIN) return { st: 'warn', text: `online · RSSI ${fmtDb(rssi)} dBm`, why: `Sinal Wi-Fi fraco: o RSSI deve ser até ${WIFI_RSSI_MIN} dBm (de ${WIFI_RSSI_MIN} para 0). Aproxime o aparelho ou use cabo de rede.` };
-      return { st: 'on', text: 'online', why: wifi ? `via Wi-Fi ${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` : `via ${gponCableLabel(c)} na ${(ONT_PORTS.find(x => x.id === c.fromPort) || {}).label || 'LAN'} ${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` };
+      return { st: 'on', text: 'online', why: wifi ? `via Wi-Fi ${j ? '"' + j.w.ssid + '" ' : ''}${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` : `via ${gponCableLabel(c)} na ${(ONT_PORTS.find(x => x.id === c.fromPort) || {}).label || 'LAN'} ${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` };
     }
     const NET_ST = { on: 'ok', warn: 'warn', off: 'bad' };
     const wifiRule = () => `Wi-Fi: use a rede 5 GHz e RSSI até ${WIFI_RSSI_MIN} dBm.`;
@@ -901,10 +924,12 @@
           </div>
           <div class="mt-2">${ns.iot
             ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); setIoT('${esc(ns.iot)}', true)" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-toggle-on"></i> habilitar rede IoT</button>`
+            : ns.pick
+            ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); selectConnection('${esc(ns.pick)}')" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-wifi"></i> ${esc(ns.text.replace('offline · ', '').replace('escolher rede Wi-Fi', 'escolher rede'))}</button>`
             : ns.st === 'off'
             ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); openConnectMenu('${esc(n.id)}', this)" onmousedown="event.stopPropagation()" title="Conectar: cabo RJ45 1,5 m, Wi-Fi ou PONTO ULTRA">● offline · <i class="fa-solid fa-plug"></i> conectar</button>`
             : `<span class="net-chip net-${ns.st}">● ${ns.text}</span>`}</div>
-          ${c && c.cableType === 'Wi-Fi' && n.type === 'camera' ? `<div class="mt-1.5 text-[11px] leading-snug text-sky-300"><i class="fa-solid fa-wifi"></i> Rede 2,4 GHz${c.band === '5' ? ' · <b class="text-amber-300">agora 5 GHz</b>' : ''}</div>` : c && c.cableType === 'Wi-Fi' ? `<div class="mt-1.5 text-[11px] leading-snug text-amber-300"><i class="fa-solid fa-triangle-exclamation"></i> Use 5 GHz · RSSI até ${WIFI_RSSI_MIN} dBm${c.band === '2.4' ? ' · <b>agora 2,4 GHz</b>' : ''}${sigVal(c.rssi) != null ? ' · medido ' + fmtDb(sigVal(c.rssi)) : ''}</div>` : ''}
+          ${c && c.cableType === 'Wi-Fi' && ecoNets(byId(c.from)) ? (c.ssid ? `<div class="mt-1.5 text-[11px] leading-snug text-sky-300 truncate"><i class="fa-solid fa-wifi"></i> ${esc(c.ssid)} · ${c.band === '2.4' ? '2,4' : '5'} GHz${sigVal(c.rssi) != null ? ' · ' + fmtDb(sigVal(c.rssi)) + ' dBm' : ''}</div>` : '') : c && c.cableType === 'Wi-Fi' && n.type === 'camera' ? `<div class="mt-1.5 text-[11px] leading-snug text-sky-300"><i class="fa-solid fa-wifi"></i> Rede 2,4 GHz${c.band === '5' ? ' · <b class="text-amber-300">agora 5 GHz</b>' : ''}</div>` : c && c.cableType === 'Wi-Fi' ? `<div class="mt-1.5 text-[11px] leading-snug text-amber-300"><i class="fa-solid fa-triangle-exclamation"></i> Use 5 GHz · RSSI até ${WIFI_RSSI_MIN} dBm${c.band === '2.4' ? ' · <b>agora 2,4 GHz</b>' : ''}${sigVal(c.rssi) != null ? ' · medido ' + fmtDb(sigVal(c.rssi)) : ''}</div>` : ''}
         </div>`;
     }
     // Desenho de um cabo óptico (mesmo visual no mapa, no dock e no relatório)
@@ -4349,7 +4374,7 @@
       if (d.type !== 'eco:state' || typeof d.key !== 'string') return;
       const n = nodes.find(x => x.ecoKey === d.key);
       if (!isEcoEquip(n)) return;
-      const nets = Array.isArray(d.nets) ? d.nets.slice(0, 16).map(w => ({ ssid: String(w.ssid || '').slice(0, 64), band: String(w.band || '').slice(0, 20), sec: String(w.sec || '').slice(0, 20), iot: !!w.iot })) : [];
+      const nets = Array.isArray(d.nets) ? d.nets.slice(0, 16).map(w => ({ ssid: String(w.ssid || '').slice(0, 64), band: String(w.band || '').slice(0, 20), sec: String(w.sec || '').slice(0, 20), pass: String(w.pass || '').slice(0, 64), iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : [];
       const prevIot = !!n.iot;
       n.ecoCfg = { nets, at: Date.now() };
       if (typeof d.iot === 'boolean') { if (d.iot) n.iot = true; else delete n.iot; }
@@ -4366,7 +4391,7 @@
           <div class="text-[11px] text-slate-400 leading-snug">${ECO_LABEL[model]}${n.type === 'ont' && !n.model ? ' (ONT genérica = G-PON)' : ''}, com os níveis de sinal deste projeto.</div>
           ${cfg ? `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
             <b class="text-slate-200">Rede configurada</b>
-            ${nets.length ? nets.map(w => `<span class="block font-mono truncate">${w.iot ? '<i class="fa-solid fa-microchip text-amber-400"></i>' : '<i class="fa-solid fa-wifi text-sky-400"></i>'} ${esc(w.ssid)} <span class="text-slate-500">· ${esc(w.band)}${w.sec === 'NENHUM' ? ' · aberta' : ''}</span></span>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
+            ${nets.length ? nets.map(w => `<span class="block font-mono truncate">${w.iot ? '<i class="fa-solid fa-microchip text-amber-400"></i>' : '<i class="fa-solid fa-wifi text-sky-400"></i>'} ${esc(w.ssid)} <span class="text-slate-500">· ${esc(w.band)}${w.sec === 'NENHUM' ? ' · aberta' : ''}${w.hidden ? ' · oculta' : ''}</span></span>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
           </div>` : ''}
         </div>`;
     }
@@ -4463,6 +4488,60 @@
       }
       refresh();
     }
+    // Seletor de rede Wi-Fi (como no celular): lista as redes do EMTA/ONT, pede a senha e conecta
+    let wifiPick = null;   // { conn, i } — i = índice da rede escolhida, -1 = rede oculta (digitar o nome)
+    function wifiPickNet(i) { wifiPick = { conn: selectedConnectionId, i }; renderProperties(); setTimeout(() => { const e = document.getElementById(i < 0 ? 'wifi-ssid' : 'wifi-pass'); if (e) e.focus(); }, 30); }
+    function wifiCancel() { wifiPick = null; renderProperties(); }
+    function wifiConnectNow() {
+      const c = connById(selectedConnectionId), g = c && byId(c.from), dev = c && byId(c.to), nets = ecoNets(g);
+      if (!c || !nets || !wifiPick) return;
+      const sEl = document.getElementById('wifi-ssid'), pEl = document.getElementById('wifi-pass');
+      const ssid = wifiPick.i < 0 ? (sEl ? sEl.value.trim() : '') : (nets[wifiPick.i] || {}).ssid;
+      const pass = pEl ? pEl.value : '';
+      const w = nets.find(x => x.ssid === ssid);
+      if (!w) { showToast(ssid ? `Rede "${ssid}" não encontrada.` : 'Digite o nome da rede.', 'warning'); return; }
+      if (w.sec !== 'NENHUM' && w.pass !== pass) { showToast(`Senha incorreta para "${ssid}".`, 'warning'); if (pEl) { pEl.value = ''; pEl.focus(); } return; }
+      c.ssid = w.ssid; c.wpass = w.sec === 'NENHUM' ? '' : pass;
+      c.band = dev && dev.type === 'camera' ? (netHas24(w) ? '2.4' : '5') : netHas5(w) ? '5' : '2.4';
+      wifiPick = null;
+      refresh();
+      showToast(`${dev ? dev.name : 'Aparelho'} conectado à rede "${w.ssid}".`, 'success');
+    }
+    function wifiPickerHTML(c, g, dev) {
+      const nets = ecoNets(g), j = wifiJoin(c, g), pick = wifiPick && wifiPick.conn === c.id ? wifiPick : null;
+      const vis = nets.map((w, i) => ({ w, i })).filter(x => !x.w.hidden);
+      const row = ({ w, i }) => {
+        const on = j && j.w === w, sel = pick && pick.i === i;
+        return `<button onclick="wifiPickNet(${i})" class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs ${sel ? 'bg-slate-800' : 'hover:bg-slate-800/70'}">
+          <i class="fa-solid fa-wifi ${w.iot ? 'text-amber-400' : 'text-sky-400'}"></i>
+          <span class="min-w-0 flex-1"><b class="text-slate-100 block truncate">${esc(w.ssid)}</b><span class="text-[10px] text-slate-400">${on ? '<b class="text-emerald-400">Conectado</b> · ' : ''}${esc(wifiBandLabel(w))}${w.iot ? ' · IoT' : ''}</span></span>
+          ${w.sec === 'NENHUM' ? '<span class="text-[10px] text-amber-300">aberta</span>' : '<i class="fa-solid fa-lock text-slate-500 text-[10px]"></i>'}
+        </button>`;
+      };
+      const pw = pick ? (pick.i < 0 ? { sec: 'WPA2' } : nets[pick.i]) : null;
+      return `
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Redes Wi-Fi ${g.type === 'modem' ? 'do' : 'da'} ${esc(g.name)}</label>
+          <div class="rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
+            ${vis.length ? vis.map(row).join('<div class="border-t border-slate-800"></div>') : '<p class="px-2 py-2 text-[11px] text-amber-300">Nenhuma rede Wi-Fi visível.</p>'}
+            <div class="border-t border-slate-800"></div>
+            <button onclick="wifiPickNet(-1)" class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-slate-300 ${pick && pick.i < 0 ? 'bg-slate-800' : 'hover:bg-slate-800/70'}"><i class="fa-solid fa-plus text-slate-500"></i> Adicionar rede oculta</button>
+          </div>
+        </div>
+        ${pw ? `<div class="space-y-1.5 border border-sky-700 rounded-lg p-2">
+          ${pick.i < 0 ? `<label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Nome da rede (SSID)</span>
+            <input id="wifi-ssid" type="text" autocomplete="off" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono"></label>` : `<p class="text-xs text-slate-200">Conectar a <b>${esc(pw.ssid)}</b></p>`}
+          ${pw.sec === 'NENHUM' ? '<p class="text-[11px] text-amber-300">Rede aberta, sem senha.</p>' : `<label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Senha</span>
+            <input id="wifi-pass" type="text" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')wifiConnectNow()" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono"></label>`}
+          <div class="flex gap-1.5">
+            <button onclick="wifiConnectNow()" class="flex-1 text-xs font-bold rounded-lg px-2 py-1.5" style="color:#0f172a;background:#38bdf8">Conectar</button>
+            <button onclick="wifiCancel()" class="text-xs text-slate-300 border border-slate-700 rounded-lg px-2 py-1.5">Cancelar</button>
+          </div>
+        </div>` : ''}
+        <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">RSSI (dBm)</span>
+          <input type="text" inputmode="decimal" placeholder="ex.: -55" value="${sigVal(c.rssi) == null ? '' : esc(c.rssi)}" onchange="updateWifi('rssi', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold"></label>
+        <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede IoT (2,4 GHz).' : wifiRule()}</p>`;
+    }
     function netLinkPanelHTML(c) {
       const ont = byId(c.from), dev = byId(c.to), ns = netState(dev);
       const opts = NET_DEV[dev.type].wifiOnly ? [['Wi-Fi', 'Wi-Fi']] : [['Wi-Fi', 'Wi-Fi'], ...(allowsPatch(dev) ? [['RJ45 1,5 m', 'Cabo RJ45 1,5 m']] : []), ['RJ45', `PONTO ULTRA (RJ45 em metros) · ${ultraCost(dev)}`]];
@@ -4483,7 +4562,7 @@
           ${c.cableType === 'RJ45' ? `<div>
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PONTO ULTRA · comprimento (m) · ${ultraCost(dev)}</label>
             <input type="number" min="1" max="${RJ45_MAX}" step="0.5" value="${esc(c.length)}" onchange="updateNetLength(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold">
-          </div>` : c.cableType === 'RJ45 1,5 m' ? `<p class="text-[11px] text-slate-400">Cabo RJ45 padrão de 1,5 m, conectores inclusos.</p>` : `<div class="grid grid-cols-2 gap-1.5">
+          </div>` : c.cableType === 'RJ45 1,5 m' ? `<p class="text-[11px] text-slate-400">Cabo RJ45 padrão de 1,5 m, conectores inclusos.</p>` : ecoNets(ont) ? wifiPickerHTML(c, ont, dev) : `<div class="grid grid-cols-2 gap-1.5">
               <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rede</span>
                 <select onchange="updateWifi('band', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
                   <option value="5" ${c.band !== '2.4' ? 'selected' : ''}>5 GHz</option><option value="2.4" ${c.band === '2.4' ? 'selected' : ''}>2,4 GHz</option>
@@ -4491,7 +4570,8 @@
               <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">RSSI (dBm)</span>
                 <input type="text" inputmode="decimal" placeholder="ex.: -55" value="${sigVal(c.rssi) == null ? '' : esc(c.rssi)}" onchange="updateWifi('rssi', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold"></label>
             </div>
-            <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede 2,4 GHz.' : wifiRule()}</p>`}
+            <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede 2,4 GHz.' : wifiRule()}</p>
+            ${isEcoEquip(ont) ? `<p class="text-[11px] text-slate-400 leading-snug"><i class="fa-solid fa-sliders text-sky-400"></i> Para escolher a rede e digitar a senha, configure ${ont.type === 'modem' ? 'o' : 'a'} ${esc(ont.name)} em <b>Acessar página de configuração</b>.</p>` : ''}`}
           <div><span class="net-chip net-${ns.st}">● ${ns.text}</span><p class="text-[11px] text-slate-400 mt-1">${esc(ns.why)}</p></div>
         </div>`;
     }
@@ -4850,7 +4930,7 @@
         mode: projectMode,
         limits,
         nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
-        connections: connections.map(c => ({ id: c.id, from: c.from, fromPort: c.fromPort, to: c.to, cableType: c.cableType, length: c.length, ...(c.num ? { num: c.num } : {}), ...(c.conectores != null ? { conectores: c.conectores } : {}), ...(c.cableType === 'Wi-Fi' ? { band: c.band || '5', rssi: c.rssi == null ? '' : c.rssi } : {}) }))
+        connections: connections.map(c => ({ id: c.id, from: c.from, fromPort: c.fromPort, to: c.to, cableType: c.cableType, length: c.length, ...(c.num ? { num: c.num } : {}), ...(c.conectores != null ? { conectores: c.conectores } : {}), ...(c.cableType === 'Wi-Fi' ? { band: c.band || '5', rssi: c.rssi == null ? '' : c.rssi, ...(c.ssid ? { ssid: c.ssid, wpass: c.wpass || '' } : {}) } : {}) }))
       });
     }
     function scheduleCommit() {
@@ -5972,7 +6052,7 @@
         used.add(port.id);
         inputs.add(dst.id);
         const len = Number(c.length);
-        kept.push({ id: c.id || ('conn_' + i), from: src.id, fromPort: port.id, to: dst.id, ...(c.num ? { num: String(c.num).toUpperCase().replace(/[^0-9A-Z\- ]/g, '').slice(0, 8) } : {}), cableType: isNetCable(c.cableType) ? c.cableType : isGpon() ? (isGponCable(c.cableType) ? c.cableType : 'Drop') : isDG(src) ? DG_CABLE : (cableAttenuation[c.cableType] ? c.cableType : 'RG6'), length: isNaN(len) || len < 0 ? 10 : len, ...(c.cableType === 'Wi-Fi' ? { band: c.band === '2.4' ? '2.4' : '5', rssi: sigVal(c.rssi) == null ? '' : sigVal(c.rssi) } : {}), ...(isGpon() && !isNetCable(c.cableType) && c.cableType !== 'Cordão óptico' ? { conectores: Math.max(0, Math.min(20, Math.round(Number(c.conectores)) || 0)) } : {}) });
+        kept.push({ id: c.id || ('conn_' + i), from: src.id, fromPort: port.id, to: dst.id, ...(c.num ? { num: String(c.num).toUpperCase().replace(/[^0-9A-Z\- ]/g, '').slice(0, 8) } : {}), cableType: isNetCable(c.cableType) ? c.cableType : isGpon() ? (isGponCable(c.cableType) ? c.cableType : 'Drop') : isDG(src) ? DG_CABLE : (cableAttenuation[c.cableType] ? c.cableType : 'RG6'), length: isNaN(len) || len < 0 ? 10 : len, ...(c.cableType === 'Wi-Fi' ? { band: c.band === '2.4' ? '2.4' : '5', rssi: sigVal(c.rssi) == null ? '' : sigVal(c.rssi), ...(typeof c.ssid === 'string' && c.ssid ? { ssid: c.ssid.slice(0, 64), wpass: String(c.wpass || '').slice(0, 64) } : {}) } : {}), ...(isGpon() && !isNetCable(c.cableType) && c.cableType !== 'Cordão óptico' ? { conectores: Math.max(0, Math.min(20, Math.round(Number(c.conectores)) || 0)) } : {}) });
       });
       connections = kept;
       limits = { ...DEFAULT_LIMITS };   // níveis padrão fixos
