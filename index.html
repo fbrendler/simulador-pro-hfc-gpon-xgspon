@@ -234,7 +234,7 @@
     .dio-grille { position: absolute; left: 0; right: 0; bottom: 0; height: 12px; border-radius: 0 0 0.75rem 0.75rem; background: repeating-linear-gradient(90deg, #0f1f45 0 3px, #1a3263 3px 16px); }
     .port.port-dio.port-free { background: #450a0a; border-color: #ef4444; } .port.port-dio.port-free:hover { box-shadow: 0 0 10px rgba(239,68,68,.8); }
     .port.port-dio.port-used { background: #ef4444; border-color: #fee2e2; }
-    .port-mdu-in { background: #7f1d1d; border-color: #ef4444; cursor: default; } .port-mdu-in:hover { transform: none; }
+    .port.port-mdu-in, html.light .port.port-mdu-in { background: #7f1d1d; border-color: #ef4444; }
     .port-dio-in { background: #1e293b; border-color: #94a3b8; cursor: default; } .port-dio-in:hover { transform: none; }
     .nap-box.nap-mdu { min-height: 15.5rem; display: flex; flex-direction: column; color: #334155; border-radius: 1.1rem 1.1rem 0.6rem 0.6rem;
       background: linear-gradient(180deg, #f1f5f9, #d9dee5); border-color: #94a3b8; box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 1px 0 #fff; }
@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.64';   // Versão Prévia
+    const APP_VERSION = '0.65';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -755,8 +755,9 @@
     const isDIO = n => !!n && n.type === 'tap' && n.model === 'cto' && (n.org === 'dio' || n.org === 'mdu');   // caixa interna: DIO (4 portas) ou NAP MDU (8)
     const isMDU = n => isDIO(n) && n.org === 'mdu';
     const isDioAzul = n => isDIO(n) && n.org === 'dio';
-    const DIO_LAT = 4, DIO_BAIXO = 8, DIO_PORTAS = DIO_LAT + DIO_BAIXO, MDU_PORTAS = 8;   // DIO: 4 vermelhas na lateral esquerda + 8 embaixo
-    const DIO_TOP = 70, DIO_STEP = 30, DIO_IN_Y = DIO_TOP + DIO_LAT * DIO_STEP + 12;   // DIO azul: portas 01–04 na lateral esquerda, entrada logo abaixo, 05–12 embaixo
+    const DIO_LAT = 4, DIO_BAIXO = 8, DIO_PORTAS = DIO_LAT + DIO_BAIXO, MDU_PORTAS = 8;   // DIO: 01–08 embaixo (clientes) + 09–12 vermelhas na lateral (expansão)
+    const DIO_TOP = 70, DIO_STEP = 30, DIO_IN_Y = DIO_TOP + DIO_LAT * DIO_STEP + 12;   // DIO azul: 09–12 na lateral esquerda, entrada logo abaixo
+    const isDioExp = (n, portId) => isDioAzul(n) && Number(String(portId).replace('out', '')) > DIO_BAIXO;   // porta vermelha de expansão (liga NAP MDU)
     // Migração HFC → GPON: no projeto HFC dá para trocar o EMTA por uma ONT ligada na fibra (DIO/NAP, fibras, divisor óptico, PTO).
     // A fibra é só para a internet: as TVs via HFC continuam no coaxial.
     const isOptNode = n => !!n && (isCTO(n) || isOptPassive(n.type) || n.type === 'ont');
@@ -859,11 +860,11 @@
       }
       if (isDioAzul(node)) {   // DIO azul: portas na lateral esquerda, uma embaixo da outra; entrada logo abaixo delas
         const i = Math.max(0, Number(String(portId).replace('out', '')) - 1);
-        if (portId !== 'in' && i >= DIO_LAT) {   // 05–12: fileira de baixo
-          const lx = s.w * (i - DIO_LAT + 1) / (DIO_BAIXO + 1);
+        if (portId !== 'in' && i < DIO_BAIXO) {   // 01–08: fileira de baixo
+          const lx = s.w * (i + 1) / (DIO_BAIXO + 1);
           return { x: node.x + lx, y: node.y + s.h, lx, ly: s.h, vx: 0, vy: 1 };
         }
-        const ly = portId === 'in' ? DIO_IN_Y : DIO_TOP + i * DIO_STEP;
+        const ly = portId === 'in' ? DIO_IN_Y : DIO_TOP + (i - DIO_BAIXO) * DIO_STEP;   // 09–12: lateral esquerda
         return { x: node.x, y: node.y + ly, lx: 0, ly, vx: -1, vy: 0 };
       }
       const side = cardSide(node, portId === 'in' ? 'in' : 'out');
@@ -925,7 +926,10 @@
       if (isGateway(srcL) && !isNetDev(target)) return `Das portas LAN e do Wi-Fi ${GW().da} só saem pontos de TV e dispositivos da rede (Box TV, Sound Box, Smart TV, Video-game, PC...).`;
       if (isNetDev(target) && !isGateway(srcL)) return `${target.name} se liga ${GW().na} (porta LAN ou Wi-Fi).`;
       if (isGateway(srcL) && isTvPoint(target) && netCount(srcL.id) >= NET_MAX_TV) return `${GW().A} aceita até ${NET_MAX_TV} pontos de TV.`;
-      if (target.type === 'tap') return isCTO(target) ? 'O DIO/NAP é a origem do sinal e não possui entrada.' : 'O TAP é a origem do sinal e não possui entrada.';
+      const expSrc = isDioExp(srcL, linkSource.portId);
+      if (expSrc && !isMDU(target)) return 'As portas vermelhas (09–12) do DIO são de expansão: nelas só se liga a entrada E de uma NAP MDU.';
+      if (isMDU(target) && !expSrc) return 'A entrada E da NAP MDU se liga numa porta vermelha (09–12, expansão) do DIO.';
+      if (target.type === 'tap' && !isMDU(target)) return isCTO(target) ? 'O DIO/NAP é a origem do sinal e não possui entrada.' : 'O TAP é a origem do sinal e não possui entrada.';
       if (!isGpon() && isOptNode(srcL) && !isOptNode(target)) return 'Da fibra só se liga divisor óptico, PTO ou ONT. Na migração HFC → GPON a fibra é só para a internet: as TVs via HFC continuam no coaxial.';
       if (!isGpon() && !isOptNode(srcL) && isOptNode(target)) return `${target.name} recebe fibra: ligue a partir do DIO/NAP, de um divisor óptico ou do PTO.`;
       if (inputConn(target.id)) return `A entrada de "${target.name}" já está ocupada.`;
@@ -1173,7 +1177,7 @@
         return `
         <div class="nap-box dio-azul" style="width:200px;min-height:${DIO_IN_Y + 44}px">
           <div class="dio-rail"></div>
-          ${Array.from({ length: DIO_LAT }, (_, i) => lab(String(i + 1).padStart(2, '0'), DIO_TOP + i * DIO_STEP)).join('')}${lab('IN', DIO_IN_Y, 'dio-lab-in')}${Array.from({ length: DIO_BAIXO }, (_, i) => `<span class="dio-blab" style="left:${(200 * (i + 1) / (DIO_BAIXO + 1) - 9).toFixed(1)}px">${String(DIO_LAT + i + 1).padStart(2, '0')}</span>`).join('')}
+          ${Array.from({ length: DIO_LAT }, (_, i) => lab(String(DIO_BAIXO + i + 1).padStart(2, '0'), DIO_TOP + i * DIO_STEP)).join('')}${lab('IN', DIO_IN_Y, 'dio-lab-in')}${Array.from({ length: DIO_BAIXO }, (_, i) => `<span class="dio-blab" style="left:${(200 * (i + 1) / (DIO_BAIXO + 1) - 9).toFixed(1)}px">${String(i + 1).padStart(2, '0')}</span>`).join('')}
           <div class="nap-head"><span class="nap-name"><i class="fa-solid fa-server"></i> ${esc(n.name)}</span></div>
           <span class="nap-badge dio-badge">DIO · ${esc(n.tec || 'GPON')}</span>
           <div class="nap-rows">${rows}</div>
@@ -1803,12 +1807,14 @@
       return true;
     }
     // Origem (só existe uma por projeto: TAP, DG ou CTO)
-    const coaxOrigin = () => nodes.find(n => n.type === 'tap' && !isCTO(n)) || null, optOrigin = () => nodes.find(isCTO) || null;
+    const coaxOrigin = () => nodes.find(n => n.type === 'tap' && !isCTO(n)) || null, optOrigin = () => nodes.find(isDioAzul) || nodes.find(n => isCTO(n) && !inputConn(n.id)) || nodes.find(isCTO) || null;
     const projectOrigin = () => isGpon() ? optOrigin() : coaxOrigin() || optOrigin();
     const originFor = t => isGpon() || isOptOriginItem(t) ? optOrigin() : coaxOrigin();   // HFC: TAP/DG (TV) e DIO/NAP (internet)
     const isOriginItem = t => /^(tap[248]|dg|ctoc?\d+|dio(4|8|12)|mdu8)$/.test(String(t));
     const originKey = n => isDioAzul(n) ? 'dio12' : isMDU(n) ? 'mdu8' : isCTO(n) ? (napMount(n) === 'cordoalha' ? 'ctoc' : 'cto') + tapVias(n) : isDG(n) ? 'dg' : 'tap' + tapVias(n);
+    const isMduExp = t => (t === 'mdu8' || t === 'dio8') && nodes.some(isDioAzul);   // NAP MDU de expansão: acrescenta, não troca o DIO
     function swapOrigin(type) {
+      if (isMduExp(type)) return false;
       const org = originFor(type);
       if (!org) return false;
       if (originKey(org) === type) { showToast('Essa já é a origem do projeto.', 'info'); return true; }
@@ -2130,7 +2136,7 @@
       }
       const id = 'node_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
       let vias, model;
-      if ((isOriginItem(type) || type === 'tap') && originFor(type)) {
+      if ((isOriginItem(type) || type === 'tap') && originFor(type) && !isMduExp(type)) {
         const org = originFor(type);
         showToast(isGpon() ? 'Só pode haver uma origem por projeto. Para trocar entre DIO e NAP ou mudar as portas, use o painel da origem.'
           : isOptOriginItem(type) ? 'O projeto já tem um DIO/NAP (a fibra da internet). Para trocar entre DIO e NAP ou mudar as portas, use o painel da origem.'
@@ -2174,6 +2180,7 @@
       const offset = (nodes.length % 8) * 22;
       const napTags = model === 'cto' ? (org === 'dio' || org === 'mdu' ? [DIO_TAG_PADRAO] : vias === 16 ? [NAP_TAG_PADRAO, nextTag(NAP_TAG_PADRAO)] : [NAP_TAG_PADRAO]) : null;
       nodes.push({ id, type, name, ...(napTags ? { tags: napTags } : {}), ...(vias ? { vias } : {}), ...(model ? { model } : {}), ...(org ? { org } : {}), ...(mount ? { mount } : {}), x: x != null ? Math.max(0, x) : Math.max(0, (180 + offset - view.x) / view.zoom), y: y != null ? Math.max(0, y) : Math.max(0, (120 + offset - view.y) / view.zoom), signals: initSignals });
+      if (org === 'mdu' && nodes.some(isDioAzul)) setTimeout(() => showToast('NAP MDU de expansão: ligue a entrada E dela numa porta vermelha (09–12) do DIO.', 'info'), 0);
       selection.clear();
       selectedNodeId = id;
       selectedConnectionId = null;
@@ -3177,9 +3184,14 @@
 
         // Portas clicáveis sobre os conectores
         if (node.type !== 'tap') host.appendChild(makePortEl(node, 'in', null, isTarget));
-        else if (isDioAzul(node) || isMDU(node)) {   // entrada do DIO / da NAP MDU (fibra que chega na caixa): só indicação
+        else if (isMDU(node)) {   // entrada E da NAP MDU: recebe a fibra de uma porta vermelha (expansão) do DIO
+          const e = makePortEl(node, 'in', null, isTarget);
+          e.classList.add('port-mdu-in'); e.title = inputConn(node.id) ? 'E (entrada) — ligada no DIO (expansão); clique para selecionar a fibra' : 'E (entrada) — ligue numa porta vermelha (09–12) do DIO';
+          host.appendChild(e);
+        }
+        else if (isDioAzul(node)) {   // entrada do DIO (fibra que chega na caixa): só indicação
           const e = document.createElement('div'), pp = portPos(node, 'in');
-          e.className = 'port ' + (isMDU(node) ? 'port-mdu-in' : 'port-dio-in'); e.title = isMDU(node) ? 'E (entrada da fibra na NAP MDU)' : 'IN (entrada da fibra no DIO)';
+          e.className = 'port port-dio-in'; e.title = 'IN (entrada da fibra no DIO)';
           e.style.left = (pp.lx - 8) + 'px'; e.style.top = (pp.ly - 8) + 'px';
           host.appendChild(e);
         }
@@ -3216,7 +3228,7 @@
       }
       if (port && port.id === 'wifi') { cls += ' port-wifi'; b.innerHTML = '<i class="fa-solid fa-wifi"></i>'; }
       if (port && port.fast) cls += ' port-fast';   // LAN 2,5G / 10G
-      if (port && isDioAzul(node) && Number(String(port.id).replace('out', '')) <= DIO_LAT) cls += ' port-dio';   // portas vermelhas do DIO
+      if (port && isDioExp(node, port.id)) { cls += ' port-dio'; b.title = `${port.label} (expansão)` + (portConn(node.id, portId) ? '' : ' — ligue a entrada E de uma NAP MDU'); }   // portas vermelhas do DIO
       b.className = cls;
       b.style.left = (pos.lx - 8) + 'px';
       b.style.top = (pos.ly - 8) + 'px';
