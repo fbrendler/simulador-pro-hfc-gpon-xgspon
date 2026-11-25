@@ -442,7 +442,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.41';   // Versão Prévia
+    const APP_VERSION = '0.42';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -4062,6 +4062,7 @@
 
             ${isEndpoint(n) ? endpointPropsHTML(n) : ''}
             ${isNetDev(n) ? netDevPanelHTML(n) : ''}
+            ${n.type === 'boxtv' ? ecoBoxPanelHTML(n) : ''}
             ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
             ${isEcoEquip(n) ? ecoPanelHTML(n) : ''}
             ${isGateway(n) ? iotPanelHTML(n) : ''}
@@ -4336,7 +4337,11 @@
     function openEquipConfig(id) {
       const n = byId(id);
       if (!isEcoEquip(n)) return;
-      const url = ecoLink(n);
+      const model = ecoModel(n);
+      openEcoFrame(id, ecoLink(n), `Configurar ${n.name} · ${ECO_LABEL[model]}`, 'Níveis de sinal do projeto aplicados no equipamento. A rede Wi-Fi e a rede IoT voltam para o projeto ao salvar.');
+    }
+    function openEcoFrame(id, url, title, sub) {
+      const n = byId(id);
       scheduleCommit();   // salva a ecoKey criada agora
       ecoOpenId = id;
       let ov = document.getElementById('eco-overlay');
@@ -4347,13 +4352,12 @@
         ov.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(2,6,23,.8)';
         document.body.appendChild(ov);
       }
-      const model = ecoModel(n);
       ov.innerHTML = `
         <div class="flex items-center gap-2 bg-slate-900 border border-slate-700 px-3 py-2 text-slate-100" style="border-radius:12px 12px 0 0">
           <i class="fa-solid fa-sliders text-sky-400"></i>
           <div class="min-w-0 flex-1 leading-tight">
-            <b class="text-sm block truncate">Configurar ${esc(n.name)} · ${ECO_LABEL[model]}</b>
-            <span class="text-[11px] text-slate-400 block truncate">Níveis de sinal do projeto aplicados no equipamento. A rede Wi-Fi e a rede IoT voltam para o projeto ao salvar.</span>
+            <b class="text-sm block truncate">${esc(title)}</b>
+            <span class="text-[11px] text-slate-400 block truncate">${esc(sub)}</span>
           </div>
           <a href="${esc(url)}" target="_blank" rel="noopener" class="text-xs text-sky-300 hover:text-sky-200 px-2 py-1 border border-slate-700 rounded-lg whitespace-nowrap" title="Abrir em nova aba"><i class="fa-solid fa-up-right-from-square"></i><span class="hidden sm:inline"> Nova aba</span></a>
           <button onclick="closeEquipConfig()" class="text-xs font-bold px-3 py-1 rounded-lg whitespace-nowrap" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-check"></i> Concluir</button>
@@ -4371,6 +4375,7 @@
       const d = e.data;
       if (!d || typeof d !== 'object' || d.v !== 1) return;
       if (d.type === 'eco:close') { if (ecoOpenId) closeEquipConfig(); return; }
+      if (d.type === 'eco:box' && typeof d.key === 'string') { ecoBoxMsg(d); return; }
       if (d.type !== 'eco:state' || typeof d.key !== 'string') return;
       const n = nodes.find(x => x.ecoKey === d.key);
       if (!isEcoEquip(n)) return;
@@ -4381,6 +4386,60 @@
       if (!ecoOpenId) refresh(); else scheduleCommit();
       if (typeof d.iot === 'boolean' && d.iot !== prevIot) showToast(`Rede IoT ${d.iot ? 'habilitada' : 'desabilitada'} na configuração ${n.type === 'modem' ? 'do' : 'da'} ${n.name}.`, d.iot ? 'success' : 'warning');
     });
+    // --- ECOSSISTEMA: Box TV via IP no Simulador BOX_TV ---
+    // O box abre com as redes do EMTA/ONT (n.ecoCfg do gateway), o tipo de ligação do projeto e se o
+    // gateway tem sinal. Ele responde ({type:'eco:box'}) com a rede em que conectou e se concluiu a instalação.
+    const ECO_BOX_DEFAULT = 'https://simulador-tv.pages.dev/box.html';
+    function ecoBoxUrl() {
+      try {
+        const q = new URLSearchParams(location.search).get('box');
+        if (q) localStorage.setItem('ecoBoxUrl', q);
+        return q || localStorage.getItem('ecoBoxUrl') || ECO_BOX_DEFAULT;
+      } catch (e) { return ECO_BOX_DEFAULT; }
+    }
+    function ecoBoxPayload(n) {
+      if (!n.ecoKey) n.ecoKey = uid('eco');
+      const c = inputConn(n.id), g = c && byId(c.from), b = n.ecoBox || {};
+      const nets = ecoNets(g);
+      return { v: 1, key: n.ecoKey, name: n.name, gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
+        link: c && c.cableType === 'Wi-Fi' ? 'wifi' : 'cabo', nets: nets ? nets.map(w => ({ ssid: w.ssid, band: w.band, sec: w.sec, pass: w.pass, iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : null,
+        ...(b.done && b.conn ? { done: true, conn: b.conn, ...(b.conn === 'wifi' ? { ssid: b.ssid || '', pass: b.pass || '' } : {}) } : {}),
+        o: /^https?:$/.test(location.protocol) ? location.origin : '*' };
+    }
+    function openBoxTv(id) {
+      const n = byId(id), c = n && inputConn(n.id), g = c && byId(c.from);
+      if (!n || !isGateway(g)) { showToast(`Ligue o ${n ? n.name : 'Box TV'} ${GW().na} primeiro (Wi-Fi ou cabo de rede).`, 'warning'); return; }
+      const url = ecoBoxUrl().replace(/#.*$/, '') + '#pro=' + ecoB64(ecoBoxPayload(n));
+      openEcoFrame(id, url, `${n.name} · Box TV`, ecoNets(g) ? `Redes ${g.type === 'modem' ? 'do' : 'da'} ${g.name} no box. A rede escolhida no box volta para o projeto.` : `${g.name} ainda não configurado: o box usa a rede de treino (REDE_CLIENTE).`);
+    }
+    function ecoBoxMsg(d) {
+      const n = nodes.find(x => x.ecoKey === d.key && x.type === 'boxtv');
+      if (!n) return;
+      const conn = d.conn === 'wifi' || d.conn === 'cabo' ? d.conn : null;
+      n.ecoBox = { done: !!d.done, conn, online: !!d.online, ...(conn === 'wifi' && typeof d.ssid === 'string' ? { ssid: d.ssid.slice(0, 64), pass: String(d.pass || '').slice(0, 64) } : {}), at: Date.now() };
+      // Wi-Fi escolhido no box = rede da ligação Wi-Fi do projeto
+      const c = inputConn(n.id), g = c && byId(c.from), nets = ecoNets(g);
+      if (c && c.cableType === 'Wi-Fi' && conn === 'wifi' && nets && n.ecoBox.ssid) {
+        const w = nets.find(x => x.ssid === n.ecoBox.ssid);
+        if (w && (w.sec === 'NENHUM' || w.pass === n.ecoBox.pass) && (c.ssid !== w.ssid || c.wpass !== n.ecoBox.pass)) {
+          c.ssid = w.ssid; c.wpass = w.sec === 'NENHUM' ? '' : n.ecoBox.pass; c.band = netHas5(w) ? '5' : '2.4';
+          showToast(`${n.name} conectado à rede "${w.ssid}" (pelo box).`, 'success');
+        }
+      }
+      if (!ecoOpenId) refresh(); else scheduleCommit();
+    }
+    function ecoBoxPanelHTML(n) {
+      const c = inputConn(n.id), g = c && byId(c.from), b = n.ecoBox;
+      return `
+        <div class="border-t border-slate-800 pt-2 space-y-1.5">
+          <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Box TV (simulador)</label>
+          <button onclick="openBoxTv('${esc(n.id)}')" class="w-full text-xs font-bold rounded-lg px-2 py-2" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-tv"></i> Abrir o Box TV</button>
+          <div class="text-[11px] text-slate-400 leading-snug">${!isGateway(g) ? `Ligue o box ${GW().na} (Wi-Fi ou cabo) para abrir.` : ecoNets(g) ? `Instalação do box com as redes ${g.type === 'modem' ? 'do' : 'da'} ${esc(g.name)}${c.cableType === 'Wi-Fi' ? '' : ' (pelo cabo de rede)'}.` : `Configure ${g.type === 'modem' ? 'o' : 'a'} ${esc(g.name)} primeiro para o box ver as redes dela; sem isso ele usa a rede de treino.`}</div>
+          ${b ? `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
+            <b class="text-slate-200">Box:</b> ${b.done ? 'instalação concluída' : 'instalação em andamento'}${b.conn ? ` · ${b.conn === 'wifi' ? 'Wi-Fi ' + esc(b.ssid || '') : 'cabo de rede'}` : ''} · <span class="${b.online ? 'text-emerald-400' : 'text-amber-300'}">${b.online ? 'com internet' : 'sem internet'}</span>
+          </div>` : ''}
+        </div>`;
+    }
     function ecoPanelHTML(n) {
       const cfg = n.ecoCfg, model = ecoModel(n);
       const nets = cfg && cfg.nets || [];
@@ -4929,7 +4988,7 @@
       return JSON.stringify({
         mode: projectMode,
         limits,
-        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.ecoBox ? { ecoBox: n.ecoBox } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
         connections: connections.map(c => ({ id: c.id, from: c.from, fromPort: c.fromPort, to: c.to, cableType: c.cableType, length: c.length, ...(c.num ? { num: c.num } : {}), ...(c.conectores != null ? { conectores: c.conectores } : {}), ...(c.cableType === 'Wi-Fi' ? { band: c.band || '5', rssi: c.rssi == null ? '' : c.rssi, ...(c.ssid ? { ssid: c.ssid, wpass: c.wpass || '' } : {}) } : {}) }))
       });
     }
@@ -5977,7 +6036,7 @@
         appVersion: 'Versão Prévia ' + APP_VERSION,
         mode: projectMode,
         limits,
-        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.ecoBox ? { ecoBox: n.ecoBox } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
         connections
       };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
