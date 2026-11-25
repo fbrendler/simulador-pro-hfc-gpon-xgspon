@@ -533,7 +533,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.61';   // Versão Prévia
+    const APP_VERSION = '0.62';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1437,9 +1437,9 @@
       setModeQuiet('gpon');
       nodes = [
         { id: 'cto', type: 'tap', model: 'cto', tec: 'GPON', name: ctoName(8), vias: 8, x: 24, y: 90, tags: ['SNCAB 001.01.04'], signals: { pot: -20 } },
-        { id: 'pto', type: 'pto', name: 'PTO', x: 150, y: 330, signals: {} },
-        { id: 'ont', type: 'ont', name: 'ONT 1', model: 'f6645p', x: 400, y: 330, signals: {} },
-        { id: 'tv1', type: 'boxtv', name: 'Decoder 1', model: 'Z4KCW6', x: 720, y: 380, signals: {} }   // fica para o técnico ligar (Wi-Fi ou cabo)
+        { id: 'pto', type: 'pto', name: 'PTO', x: 150, y: 420, signals: {} },
+        { id: 'ont', type: 'ont', name: 'ONT 1', model: 'f6645p', x: 400, y: 400, signals: {} },
+        { id: 'tv1', type: 'boxtv', name: 'Decoder 1', model: 'Z4KCW6', x: 720, y: 450, signals: {} }   // fica para o técnico ligar (Wi-Fi ou cabo)
       ];
       connections = [
         { id: 'g1', from: 'cto', fromPort: 'out1', to: 'pto', cableType: 'Drop', length: 50, conectores: 2 },
@@ -3583,14 +3583,15 @@
       return ends;
     }
     const tapeCount = () => connections.reduce((t, c) => t + tapeEnds(c).length, 0);
-    // Numerador do cabo na saída da origem
+    // Numerador do cabo na saída da origem (TAP, DG, DIO, NAP): padrão nº 100, no HFC e no GPON
+    const NUM_PADRAO = '100';
     function numerador(c) {
       const f = byId(c.from);
       if (!f || f.type !== 'tap' || isNetCable(c.cableType)) return null;
       const porta = Number(String(c.fromPort).replace('out', ''));
       if (!porta) return null;
       const cor = isCTO(f) ? (isDIO(f) ? 'amarelo' : napMount(f) === 'cordoalha' ? 'preto' : 'amarelo') : isDG(f) ? 'amarelo' : 'preto';
-      const num = String(c.num || '').trim() || String(porta);
+      const num = String(c.num || '').trim() || NUM_PADRAO;
       return { num, cor, porta, editado: !!String(c.num || '').trim(), aneis: num.replace(/\s/g, '').length };
     }
     const NUM_COR = { amarelo: { bg: '#f59e0b', fg: '#111827', bd: '#92400e' }, preto: { bg: '#111827', fg: '#7dd3fc', bd: '#475569' } };
@@ -3621,9 +3622,9 @@
               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Numerador ${nm.cor} · saída ${esc(src.name)}</label>
               <div class="flex items-center gap-1.5">
                 <span style="min-width:30px;padding:0 6px;text-align:center;border-radius:4px;font-weight:800;font-family:ui-monospace,monospace;background:${k.bg};color:${k.fg};border:1px solid ${k.bd}">${esc(nm.num)}</span>
-                <input type="text" maxlength="8" placeholder="${nm.porta}" value="${nm.editado ? esc(nm.num) : ''}" onchange="updateNumerador(this.value)" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-100 font-mono font-bold uppercase">
+                <input type="text" maxlength="8" placeholder="${NUM_PADRAO}" value="${nm.editado ? esc(nm.num) : ''}" onchange="updateNumerador(this.value)" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-100 font-mono font-bold uppercase">
               </div>
-              <p class="text-[10px] text-slate-400 mt-1">Letras e números (até 8). Em branco = número da porta (${nm.porta}).</p>
+              <p class="text-[10px] text-slate-400 mt-1">Letras e números (até 8). Em branco = ${NUM_PADRAO}.</p>
             </div>`;
     }
     // Checklist de instalação: cada item ✔ (ok), ⚠ (falta) ou – (não se aplica)
@@ -6228,7 +6229,7 @@
       ];
 
       connections = [
-        { id: 'c1', from: 'tap',   fromPort: 'out1', to: 'dc9',   cableType: 'RG6', length: 30, num: '101' },
+        { id: 'c1', from: 'tap',   fromPort: 'out1', to: 'dc9',   cableType: 'RG6', length: 30 },
         { id: 'c2', from: 'dc9',   fromPort: 'out',  to: 'div12', cableType: 'RG6', length: 5 },
         { id: 'c3', from: 'dc9',   fromPort: 'tap',  to: 'tv2',   cableType: 'RG6', length: 5 },
         { id: 'c4', from: 'div12', fromPort: 'out2', to: 'modem', cableType: 'RG6', length: 5 },
