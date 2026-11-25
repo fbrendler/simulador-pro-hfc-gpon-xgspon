@@ -442,7 +442,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.42';   // Versão Prévia
+    const APP_VERSION = '0.43';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -867,6 +867,8 @@
       const wifi = c.cableType === 'Wi-Fi';
       if (wifi && n.type === 'soundbox') return { st: 'warn', text: 'online · Wi-Fi não recomendado', why: 'Prefira cabo de rede (PONTO ULTRA) para a Sound Box. ' + wifiRule() };
       const j = wifi ? wifiJoin(c, ont) : null, gw = `${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}`;
+      if (j && j.err && n.type === 'boxtv') return { st: 'off', text: j.err === 'pick' ? 'offline · instalar no box' : j.err === 'gone' ? 'offline · rede não encontrada' : 'offline · senha incorreta',
+        why: j.err === 'pick' ? `No Box TV (Abrir o Box TV), faça a instalação e conecte na rede Wi-Fi ${gw}.` : `A rede "${c.ssid}" mudou ${gw}. No Box TV (Abrir o Box TV), vá em Configurações › Rede e conecte de novo.`, box: n.id };
       if (j && j.err === 'pick') return { st: 'off', text: 'offline · escolher rede Wi-Fi', why: `Escolha a rede Wi-Fi ${gw} e digite a senha.`, pick: c.id };
       if (j && j.err === 'gone') return { st: 'off', text: 'offline · rede não encontrada', why: `A rede "${c.ssid}" não existe mais ${gw} (nome alterado ou rede desligada). Conecte de novo.`, pick: c.id };
       if (j && j.err === 'pass') return { st: 'off', text: 'offline · senha incorreta', why: `A senha da rede "${c.ssid}" ${gw} mudou. Conecte de novo com a senha nova.`, pick: c.id };
@@ -924,6 +926,8 @@
           </div>
           <div class="mt-2">${ns.iot
             ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); setIoT('${esc(ns.iot)}', true)" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-toggle-on"></i> habilitar rede IoT</button>`
+            : ns.box
+            ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); openBoxTv('${esc(ns.box)}')" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-tv"></i> ${esc(ns.text.replace('offline · ', ''))}</button>`
             : ns.pick
             ? `<button class="net-chip net-off net-connect" onclick="event.stopPropagation(); selectConnection('${esc(ns.pick)}')" onmousedown="event.stopPropagation()" title="${esc(ns.why)}">● offline · <i class="fa-solid fa-wifi"></i> ${esc(ns.text.replace('offline · ', '').replace('escolher rede Wi-Fi', 'escolher rede'))}</button>`
             : ns.st === 'off'
@@ -4566,6 +4570,20 @@
       refresh();
       showToast(`${dev ? dev.name : 'Aparelho'} conectado à rede "${w.ssid}".`, 'success');
     }
+    // Box TV: a rede Wi-Fi é escolhida (e a senha digitada) na instalação do próprio box
+    function boxWifiHTML(c, g, dev) {
+      const j = wifiJoin(c, g);
+      return `
+        <div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
+          <b class="text-slate-200 block">Rede Wi-Fi do box</b>
+          ${c.ssid ? `<span class="font-mono">${esc(c.ssid)}</span> · ${c.band === '2.4' ? '2,4' : '5'} GHz${j && j.err ? ` · <span class="text-amber-300">${j.err === 'gone' ? 'rede não encontrada' : 'senha incorreta'}</span>` : ''}` : '<span class="text-amber-300">ainda não conectado</span>'}
+        </div>
+        <button onclick="openBoxTv('${esc(dev.id)}')" class="w-full text-xs font-bold rounded-lg px-2 py-2" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-tv"></i> Conectar pelo Box TV</button>
+        <p class="text-[11px] text-slate-400 leading-snug">A rede e a senha são escolhidas nas telas do box (primeiro uso ou Configurações › Rede).</p>
+        <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">RSSI (dBm)</span>
+          <input type="text" inputmode="decimal" placeholder="ex.: -55" value="${sigVal(c.rssi) == null ? '' : esc(c.rssi)}" onchange="updateWifi('rssi', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold"></label>
+        <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${wifiRule()}</p>`;
+    }
     function wifiPickerHTML(c, g, dev) {
       const nets = ecoNets(g), j = wifiJoin(c, g), pick = wifiPick && wifiPick.conn === c.id ? wifiPick : null;
       const vis = nets.map((w, i) => ({ w, i })).filter(x => !x.w.hidden);
@@ -4621,7 +4639,7 @@
           ${c.cableType === 'RJ45' ? `<div>
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PONTO ULTRA · comprimento (m) · ${ultraCost(dev)}</label>
             <input type="number" min="1" max="${RJ45_MAX}" step="0.5" value="${esc(c.length)}" onchange="updateNetLength(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold">
-          </div>` : c.cableType === 'RJ45 1,5 m' ? `<p class="text-[11px] text-slate-400">Cabo RJ45 padrão de 1,5 m, conectores inclusos.</p>` : ecoNets(ont) ? wifiPickerHTML(c, ont, dev) : `<div class="grid grid-cols-2 gap-1.5">
+          </div>` : c.cableType === 'RJ45 1,5 m' ? `<p class="text-[11px] text-slate-400">Cabo RJ45 padrão de 1,5 m, conectores inclusos.</p>` : ecoNets(ont) && dev.type === 'boxtv' ? boxWifiHTML(c, ont, dev) : ecoNets(ont) ? wifiPickerHTML(c, ont, dev) : `<div class="grid grid-cols-2 gap-1.5">
               <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rede</span>
                 <select onchange="updateWifi('band', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
                   <option value="5" ${c.band !== '2.4' ? 'selected' : ''}>5 GHz</option><option value="2.4" ${c.band === '2.4' ? 'selected' : ''}>2,4 GHz</option>
@@ -4652,7 +4670,7 @@
           <div><span class="net-chip net-${ns.st}">● ${ns.text}</span></div>
           <p class="text-[11px] text-slate-400 leading-snug">${esc(ns.why)}</p>
           ${ns.iot ? `<button onclick="setIoT('${esc(ns.iot)}', true)" class="w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 border border-emerald-500 text-[11px] text-white font-bold">Habilitar rede IoT ${GW().na}</button>` : ''}
-          ${ns.st === 'off' && !ns.iot ? `<button onclick="openConnectMenu('${esc(n.id)}', this)" class="w-full py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-[11px] text-rose-200 font-bold"><i class="fa-solid fa-plug"></i> Conectar (cabo, Wi-Fi ou PONTO ULTRA)</button>` : ''}
+          ${ns.st === 'off' && !ns.iot && !ns.box ? `<button onclick="openConnectMenu('${esc(n.id)}', this)" class="w-full py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-[11px] text-rose-200 font-bold"><i class="fa-solid fa-plug"></i> Conectar (cabo, Wi-Fi ou PONTO ULTRA)</button>` : ''}
           ${c ? `<button data-id="${esc(c.id)}" onclick="selectConnection(this.dataset.id)" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-200 font-semibold">Editar a ligação (${esc(gponCableLabel(c))})</button>` : ''}
           <p class="text-[10px] text-slate-500 leading-snug">${usesPatch(n) ? NET_DEV[n.type].label + ' via IP: Wi-Fi, cabo RJ45 1,5 m ou PONTO ULTRA (acima de 1,5 m).' : n.type === 'soundbox' ? 'Sound Box: de preferência PONTO ULTRA; Wi-Fi não recomendado.' : NET_DEV[n.type].label + ': Wi-Fi ou PONTO ULTRA (cabo de rede em metros).'} ${isTvPoint(n) ? 'Até ' + NET_MAX_TV + ' pontos de TV ' + GW().por + '.' : 'Dispositivo da rede do cliente.'} ${wifiRule()}</p>
         </div>`;
