@@ -533,7 +533,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.57';   // Versão Prévia
+    const APP_VERSION = '0.58';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -703,7 +703,7 @@
     const EQUIP = {
       modem: { label: 'EMTA',       name: 'EMTA F@st3896', sub: 'Modem DOCSIS 3.1', icon: 'fa-wifi', color: 'text-sky-400' },
       tv:    { label: 'Decoder 4K', name: 'Decoder',       sub: 'Ponto de TV 4K',   icon: 'fa-tv',   color: 'text-amber-400' },
-      box:   { label: 'Box TV',     name: 'Box TV',        sub: 'Ponto de TV Box',  icon: 'fa-cube', color: 'text-violet-400' },
+      box:   { label: 'Box TV',     name: 'Decoder',        sub: 'Ponto de TV Box',  icon: 'fa-cube', color: 'text-violet-400' },
       ont:   { label: 'ONT/ONU',    name: 'ONT',           sub: 'GPON / XGS-PON',   icon: 'fa-wifi', color: 'text-emerald-400' }
     };
     const DIR = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -925,9 +925,9 @@
     // Aparelhos ligados na ONT (GPON) ou no EMTA (HFC) por cabo de rede (porta LAN) ou Wi-Fi.
     // tv = ponto de TV (limite de 3); dev = dispositivo da rede do cliente (limitado pelas 4 LAN no cabo)
     const NET_DEV = {
-      boxtv:     { label: 'Box TV',     name: 'Box TV',     kind: 'tv' },
+      boxtv:     { label: 'Box TV',     name: 'Decoder',     kind: 'tv' },
       tvapp:     { label: 'TV APP',     name: 'TV APP',     kind: 'tv' },   // Smart TV com o app: mesmas regras do Box TV
-      soundbox:  { label: 'Sound Box',  name: 'Sound Box',  kind: 'tv' },
+      soundbox:  { label: 'Sound Box',  name: 'Decoder',  kind: 'tv' },
       smarttv:   { label: 'Smart TV',   name: 'Smart TV',   kind: 'dev', icon: 'fa-tv' },
       videogame: { label: 'Video-game', name: 'Video-game', kind: 'dev', icon: 'fa-gamepad' },
       pc:        { label: 'PC',         name: 'PC',         kind: 'dev', icon: 'fa-desktop' },
@@ -1035,7 +1035,7 @@
             ${netDevSVG(n.type, 46)}
             <div class="min-w-0">
               <strong class="text-slate-100 font-bold text-[14px] block leading-tight truncate">${esc(n.name)}</strong>
-              <span class="text-[11px] text-slate-400 block">${tvModel(n) ? esc(tvModelLabel(tvModel(n))) + ' · ' : ''}${c ? (c.cableType === 'Wi-Fi' ? 'via Wi-Fi' : 'cabo ' + esc(gponCableLabel(c))) : 'não ligado'}</span>
+              <span class="text-[11px] text-slate-400 block">${isIpBox(n) ? esc(NET_DEV[n.type].label) + (tvModel(n) ? ' ' + esc(tvModelLabel(tvModel(n))) : '') + ' · ' : tvModel(n) ? esc(tvModelLabel(tvModel(n))) + ' · ' : ''}${c ? (c.cableType === 'Wi-Fi' ? 'via Wi-Fi' : 'cabo ' + esc(gponCableLabel(c))) : 'não ligado'}</span>
             </div>
           </div>
           <div class="mt-2">${ns.iot
@@ -1439,7 +1439,7 @@
         { id: 'cto', type: 'tap', model: 'cto', tec: 'GPON', name: ctoName(8), vias: 8, x: 24, y: 90, tags: ['SNCAB 001.01.04'], signals: { pot: -20 } },
         { id: 'pto', type: 'pto', name: 'PTO', x: 330, y: 250, signals: {} },
         { id: 'ont', type: 'ont', name: 'ONT 1', x: 520, y: 420, signals: {} },
-        { id: 'tv1', type: 'boxtv', name: 'Box TV 1', x: 780, y: 640, signals: {} }
+        { id: 'tv1', type: 'boxtv', name: 'Decoder 1', x: 780, y: 640, signals: {} }
       ];
       connections = [
         { id: 'g1', from: 'cto', fromPort: 'out1', to: 'pto', cableType: 'Drop', length: 50, conectores: 2 },
@@ -5482,7 +5482,12 @@
       limits = { ...DEFAULT_LIMITS };
       if (st.limits) Object.keys(DEFAULT_LIMITS).forEach(k => { const v = Number(st.limits[k]); if (!isNaN(v) && k !== 'margin') limits[k] = v; });
       normalizeProject();
+      tvDecoderNames();
       resetView();
+    }
+    // Equipamento de TV (Decoder, Box TV, Sound Box) sempre se chama "Decoder N"; o tipo e o modelo aparecem embaixo do nome
+    function tvDecoderNames() {
+      nodes.filter(n => ['box', 'boxtv', 'soundbox'].includes(n.type) && /^(Box TV|Sound Box)( \d+)?$/.test(n.name || '')).forEach(n => { n.name = ''; n.name = nextNumberedName('Decoder'); });
     }
 
     // Baixa uma cópia completa do simulador (funciona offline) com o projeto atual dentro
@@ -6174,7 +6179,7 @@
         { id: 'dc9', type: 'dc9', name: 'DC 9 dB', x: 290, y: 200, signals: {} },
         { id: 'div12', type: 'div12', name: 'Divisor 1/2', x: 470, y: 70, signals: {} },
         { id: 'modem', type: 'modem', name: 'EMTA F@st3896', x: 700, y: 250, signals: {} },
-        { id: 'tv1', type: 'box', name: 'Box TV 1', x: 700, y: 432, signals: {} },
+        { id: 'tv1', type: 'box', name: 'Decoder 1', x: 700, y: 432, signals: {} },
         { id: 'tv2', type: 'tv', name: 'Decoder 1', x: 380, y: 500, signals: {} }
       ];
 
