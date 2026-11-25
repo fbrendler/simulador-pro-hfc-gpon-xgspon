@@ -37,6 +37,10 @@ Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica 
 - Aqui no GitHub: aba **Issues** → **New issue**.
 - E-mail: fabiobrendler@outlook.com
 
+## Publicação
+
+Automática: a cada envio para a `main`, o GitHub Actions (`.github/workflows/publicar.yml`) publica o `index.html` no Cloudflare Pages (projeto `simulador-pro-hfc-gpon-xgspon`). Precisa dos segredos `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` no repositório.
+
 ## Arquivos
 
 - `index.html`: o simulador completo em um único arquivo (estilos, ícones e fonte embutidos).
