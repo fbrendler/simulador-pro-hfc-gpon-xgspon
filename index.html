@@ -442,7 +442,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.44';   // Versão Prévia
+    const APP_VERSION = '0.46';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -600,8 +600,9 @@
         { id: 'out2', label: 'OUT 2', x: 100, y: 84, dir: 'down', loss: 3.5 }
       ]
     };
-    // Modelos de ONT (sem modelo = ONT genérica)
+    // Modelos de ONT (sem modelo = ONT genérica). Os mesmos do Simulador de configuração EMTA ONT.
     const ONT_MODELS = { f8748q: { label: 'ZTE F8748Q', tec: 'XGS-PON', down: '1577 nm', up: '1310/1270 nm', img: 'data:image/webp;base64,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' } };
+    ONT_MODELS.f6645p = { label: 'ZTE F6645P', tec: 'GPON', down: '1490 nm', up: '1310 nm', img: 'data:image/webp;base64,UklGRtIGAABXRUJQVlA4WAoAAAAQAAAA0gAApAAAQUxQSG0AAAABd2CWkeTodXME3z3JE3xERNCxDn2wrW1bxjGLXp+aU4dQCWM0vTr+x12yL6L/EwCHSzRgdZEGLpPpi1gqzCLEE2E2IdPvv99/KTotOmBSYYCInrCvYNxzegW/TSekEpIJGWSM/oo3AfaHNQQGAFZQOCA+BgAA0DkAnQEq0wClAD5tMJFFpCMhoTB1SpCADYlpbWcfvLIsErZvM3hjovR7v7Jjn7qvO6+qN/h6AH7ABIkQlTpXKHTDkwcwkO6FkshDK8Z8pArgJ+iXi5j8Y2MdMgggggBvwD/EjXNUVc/vkg8wISOS0vykhU+oe3tmraeJ4SXSiTku2o2LtDtu68gBgMouummQ7s+hsya24aNwNuhhV38kKd67xzeS30Vf97tilLK9UBVCOMc7sbxqv+ZyYyFaJbXyUR/jcedcmc6Ueubfz6d4po58SXXMNHi3cRj73T0UuQcLkjAvRq2FFFm17oibmU422EMp0upoODcqOV/KSvVxhAiw3SQSPD8H70FMiad6Gb5RaaMvwObPNouxgyiRFxwrcXAzmT7qFDMeYbsGrUW0O4N6ZBRiGR/mxfdy7uh7Uk8aRdI4VLcSGOKF0fIQ0f1fjWs+Vo3fDhayyEd+1MXkWFnX0dTwWsdX0uTltggBo0ikAbzmk3OmQr7VunX0HCh4LtA6u2OH2oWLH9i0pDYlXV2jaz0E0UrPxsFEUC6dw3nbggq3KffJnsIMfMl3lX+oJlI0ZSU/V2nl3kHSeiOREmdQOuPvYizXi7eiHVPrbdzp7tzKMPgAAP7w/FBEbQd1KRy9cq33r4DzNzq7KgaLr2mqrUn7STqk4GLzA9kgZjVq8GaXQ78bAcY7rCE+HT+4AvYPCKmB2kx99Ht9Ih4PJPPoNCeCom51ZmDr3UIuz5yfaN+qA4YP62+vMY9mnMP6u8D93qWuuLYp+iOrz7P72G+7oIR5efqvtMkY7kdUst5lRbSi9oDbOryx+1tj1sK7Ot1PzJy7fg8w3RKme3LnoQ44vu0i1r7E23mb1IzgBE4DETrGasvkWKNLKpGZA1SiB34tafbT0hC7mPiV61UeElS1bUEP0Qri6S2b9ozWzXE7qLKroUiaGoQq6fLFivLKfsDVuoITFDN5Xvasxdj1ct4zcleirlqJ2i64Ws6XC2ppiLZ1lWb3penyBX6RxI3ULdkfHynuYO7WFb9rqZX5ygN6sqLrKzIGk1hEHZ3DXgp8RZunUa2g09Ds2K8fOlV8p5DK5eDD9oa7g2wSWORqMkDWaoTRcCe0xPkOAra0ZWL7GeHmJ8GOYEeaKzG1j/1w+4MVI4LukNrInXQp1jkdBr8NbEEdiZOuIiXw/bi5C+SSIQgSBalXdNbeuvKZFw7/XPyLDWkDVSabcoLjb3gTqeC2+jnQ/MAgyRPgIv0Ywzu+3UdiEs6h6TigDuzCTDoFF6Ic5jcOdSa0ZiyCy8FGUrOxDGoXfDDrAgQPtPCCu0a72Pdy0vFnFn3f4qTzJv7AW73mTwOarU1dSEC8x5N9092jthLe1oUT5QyW7QGpFFYz95PpD5c+LtReRwI3K7qrbzw5JzKFLLHFVGvW1JCvhfaGxT4gx1MD4ldxRN0J0X1741XifIxae4f2d/djAweKCsgDOV9x3zE2fD8Losm+nClhTut+b1Si8CC0bid35aLibwsKycX/uwhbeR7zGYgU+Ugi66xOCXQ6s32tju/ZWYuVn8kaUn9qUNWWbsoXaMskIPpT0HzbdJV2UKYKIw+oXDXVc+teo2tANvAeCz+FfvuD4BdXdrnH6PtR/9VASyC3gjFgBwi/35TwnVdAka4V5nTGffNJAWRX2yf9oneGpdyzYzyqomxgxTvrAU8SGtKVn7qtQsy9okQb162Gjz6PZwr01bzoDCpD16Zc+fnzckNaeRlFWBvFjykULCfurwkyQHNpKBuqTgP93wZW47q/QM9/ZeZndf1F2QhzQ0Y9m2Kat75m5j4XQC6mFR6A8LIx69DZp93C/6gFe+Bu2e7o699mtv7nE7nN1qhb7iD34o9NwqaICnQco8gupdTj8qE3gtlUhVmpdPpc2qPNIhaJT+9WHactPBD/pX8tNjzvcxeUTvwgYrsfXjCKlydgbxsqw2QT9SkfdsP6T3Fh2CJDWOBCr8f+TQFzgk9Yevbnph4WB7jy/ZwQJeyDm3fsH2Uz/CyJbJjUqqKDviqejl6aSx4EeyXazIbgl0cZgTuCrL/fTgznkL+IdqtrkAPOnYeSOxO5W93xHEbYzHNyF13Fhof7xZSXT/82AAAAAAA=' };
     const ontModel = n => n && n.type === 'ont' && ONT_MODELS[n.model] ? ONT_MODELS[n.model] : null;
     const ontTecAlert = n => { const m = ontModel(n), o = m && originOf(n); return m && o && (o.tec || 'GPON') !== m.tec ? `${m.label} é ${m.tec} (descida ${m.down}): na origem (${o.name}), mude a Tecnologia para ${m.tec}.` : ''; };
     const CARD_W = { tap: 240, modem: 256, tv: 240, box: 240, ont: 240 };
@@ -921,7 +922,7 @@
             ${netDevSVG(n.type, 46)}
             <div class="min-w-0">
               <strong class="text-slate-100 font-bold text-[14px] block leading-tight truncate">${esc(n.name)}</strong>
-              <span class="text-[11px] text-slate-400 block">${c ? (c.cableType === 'Wi-Fi' ? 'via Wi-Fi' : 'cabo ' + esc(gponCableLabel(c))) : 'não ligado'}</span>
+              <span class="text-[11px] text-slate-400 block">${tvModel(n) ? esc(tvModelLabel(tvModel(n))) + ' · ' : ''}${c ? (c.cableType === 'Wi-Fi' ? 'via Wi-Fi' : 'cabo ' + esc(gponCableLabel(c))) : 'não ligado'}</span>
             </div>
           </div>
           <div class="mt-2">${ns.iot
@@ -1569,8 +1570,7 @@
           { type: 'tvapp', name: 'TV APP', tag: 'Wi-Fi · RJ45 1,5 m', info: 'TV APP: Smart TV com o aplicativo de TV. Mesmas regras do Box TV: liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou, para mais longe, PONTO ULTRA.' },
           { type: 'soundbox', name: 'Sound Box', tag: 'RJ45 em metros', info: 'Sound Box (quadrada): de preferência por cabo RJ45 em metros (conectores inclusos). O Wi-Fi funciona, mas não é recomendado.' }
         ] },
-        { label: 'Equipamento do cliente', items: [{ type: 'ont', name: 'ONT/ONU', tag: 'dBm', info: 'ONT = ONU: RX OK de −8 a −27 dBm; fora disso fica vermelho' },
-          { type: 'ontzte', name: 'ZTE F8748Q', tag: 'XGS-PON', info: 'ONT ZTE F8748Q (XGS-PON): descida 1577 nm, subida 1310/1270 nm. RX OK de −8 a −27 dBm. Com uma ONT selecionada, clique para trocar o modelo.' }] },
+        { label: 'Equipamento do cliente', items: [{ type: 'ont', name: 'ONT/ONU', tag: 'escolher modelo', info: 'ONT = ONU: clique para escolher o modelo (genérica, ZTE F6645P G-PON ou ZTE F8748Q XGS-PON). RX OK de −8 a −27 dBm. Com uma ONT selecionada, troca o modelo dela.' }] },
         { label: 'Dispositivos na rede (ONT)', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT 2,4' : 'Wi-Fi · ULTRA', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm) ou por cabo de rede PONTO ULTRA.` })) },
       ] },
       { id: 'origem', label: 'Origem', icon: 'fa-tower-cell', groups: [
@@ -1666,7 +1666,7 @@
       return true;
     }
     // Modelo da ONT: item do dock → valor de n.model ('' = genérica)
-    const ONT_ITEM = { ont: '', ontzte: 'f8748q' };
+    const ONT_ITEM = { ontzte: 'f8748q' };   // ONT/ONU agora abre o submenu de modelos (openGwMenu)
     const selectedOnt = () => { if (selection.size > 1 || !selectedNodeId) return null; const n = byId(selectedNodeId); return n && n.type === 'ont' ? n : null; };
     function setOntModel(id, model) {
       const n = byId(id);
@@ -1772,6 +1772,8 @@
           } else {
             b.onclick = () => {
               if (selOnt) { setOntModel(selOnt.id, ONT_ITEM[item.type]); return; }
+              if (TV_MODELS_BY[item.type] && !blockedTv) { openModelMenu(item.type, b); return; }
+              if (item.type === 'ont' || item.type === 'modem') { openGwMenu(item.type, b); return; }
               if (canSwap(item.type) && swapSelectedPassive(item.type)) return;
               if (isOriginItem(item.type) && swapOrigin(item.type)) return;
               addNode(item.type);
@@ -1802,6 +1804,108 @@
 
     // HFC: as TVs do projeto são todas via HFC (Decoder, Box TV coaxial) ou todas via IP (Box TV via IP, Sound Box)
     const TV_KIND = { tv: 'hfc', box: 'hfc', boxtv: 'ip', tvapp: 'ip', soundbox: 'ip' };
+    // Modelos de TV do Simulador BOX_TV (mesmos códigos do box.html). Híbridos (HFC + IP) têm "CW" no nome; Z4KCW6/Z4KW6 é só IP;
+    // os decoders SAG4KC362/363 (4K) e HHDC2/THDC4 (HD) são só cabo. Sem modelo escolhido = genérico.
+    const TV_MODELS = {
+      S4KCW3: { d: 'híbrido (HFC + IP)' }, S4KCW4S: { d: 'Sound Box · híbrido' }, S4KCW5: { d: 'híbrido (HFC + IP)' }, K4KCW5: { d: 'híbrido (HFC + IP)' },
+      S4KW1: { d: 'só IP' }, S4KW2: { d: 'só IP' }, S4KW3: { d: 'só IP' }, S4KW5: { d: 'só IP' }, Z4KCW6: { label: 'Z4KCW6 / Z4KW6', d: 'ZTE · só IP' },
+      SAG4KC362: { d: 'Sagemcom 4K · só cabo' }, SAG4KC363: { d: 'Sagemcom 4K · só cabo' }, HHDC2: { d: 'Humax HD · só cabo' }, THDC4: { d: 'Technicolor HD · só cabo' }
+    };
+    const TV_MODELS_BY = {
+      boxtv: ['S4KCW3', 'S4KCW4S', 'S4KCW5', 'K4KCW5', 'S4KW1', 'S4KW2', 'S4KW3', 'S4KW5', 'Z4KCW6'],
+      box: ['S4KCW3', 'S4KCW4S', 'S4KCW5', 'K4KCW5'],
+      tv: ['SAG4KC362', 'SAG4KC363', 'HHDC2', 'THDC4']
+    };
+    const tvModelOk = (type, m) => !!TV_MODELS_BY[type] && TV_MODELS_BY[type].includes(m);
+    const tvModel = n => n && tvModelOk(n.type, n.model) ? n.model : null;
+    const tvModelLabel = m => (TV_MODELS[m] && TV_MODELS[m].label) || m;
+    // submenu do dock: escolher o modelo ao adicionar (ou trocar o modelo do selecionado do mesmo tipo)
+    function openModelMenu(type, anchor) {
+      closeConnectMenu();
+      const cont = document.getElementById('canvas-container');
+      if (!cont || !TV_MODELS_BY[type]) return;
+      const sel = selectedNodeId && selection.size <= 1 ? byId(selectedNodeId) : null, troca = sel && sel.type === type ? sel : null;
+      const cr = cont.getBoundingClientRect(), r = anchor.getBoundingClientRect();
+      const m = document.createElement('div');
+      m.id = 'connect-menu';
+      m.style.maxHeight = (cont.clientHeight - 16) + 'px'; m.style.overflowY = 'auto';
+      m.onmousedown = e => e.stopPropagation();
+      m.onclick = e => e.stopPropagation();
+      const label = type === 'boxtv' ? 'Box TV via IP' : type === 'box' ? 'Box TV via HFC' : 'Decoder';
+      m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-tv"></i> ${troca ? `Modelo do ${esc(troca.name)}` : `Adicionar ${label}`}</div>
+        ${TV_MODELS_BY[type].map(k => `<button class="cm-opt" onclick="pickTvModel('${type}', '${k}')"><i class="fa-solid ${troca && troca.model === k ? 'fa-circle-check' : 'fa-tv'}"></i><span><b>${esc(tvModelLabel(k))}</b><small>${esc(TV_MODELS[k].d)}</small></span></button>`).join('')}
+        ${troca ? '' : `<button class="cm-opt" onclick="pickTvModel('${type}', '')"><i class="fa-solid fa-tv"></i><span><b>Genérico</b><small>sem modelo definido</small></span></button>`}`;
+      cont.appendChild(m);
+      const w = m.offsetWidth, h = m.offsetHeight;
+      m.style.left = Math.max(8, Math.min(cont.clientWidth - w - 8, r.left - cr.left)) + 'px';
+      m.style.top = Math.max(8, Math.min(cont.clientHeight - h - 8, r.top - cr.top - h - 6)) + 'px';
+      setTimeout(() => document.addEventListener('mousedown', closeConnectMenu, { once: true }), 0);
+    }
+    // Submenu dos aparelhos de internet, conforme a tecnologia: EMTA (HFC) e ONT (G-PON / XGS-PON)
+    function openGwMenu(type, anchor) {
+      closeConnectMenu();
+      const cont = document.getElementById('canvas-container');
+      if (!cont) return;
+      const selOnt = type === 'ont' ? selectedOnt() : null, org = projectOrigin(), otec = org && isCTO(org) ? (org.tec || 'GPON') : null;
+      const cr = cont.getBoundingClientRect(), r = anchor.getBoundingClientRect();
+      const m = document.createElement('div');
+      m.id = 'connect-menu';
+      m.onmousedown = e => e.stopPropagation();
+      m.onclick = e => e.stopPropagation();
+      if (type === 'ont') {
+        const opts = [['', 'ONT/ONU genérica', 'G-PON · RX OK de −8 a −27 dBm'], ...['f6645p', 'f8748q'].map(k => [k, ONT_MODELS[k].label, `${ONT_MODELS[k].tec === 'GPON' ? 'G-PON' : ONT_MODELS[k].tec} · ↓ ${ONT_MODELS[k].down} · ↑ ${ONT_MODELS[k].up}`])];
+        const tecOf = k => k ? ONT_MODELS[k].tec : 'GPON';
+        m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-wifi"></i> ${selOnt ? `Modelo da ${esc(selOnt.name)}` : 'Adicionar ONT/ONU'}</div>
+          ${opts.map(([k, t, d]) => `<button class="cm-opt ${otec && tecOf(k) !== otec ? 'cm-warn' : ''}" onclick="pickGwModel('ont', '${k}')"><i class="fa-solid ${selOnt && (selOnt.model || '') === k ? 'fa-circle-check' : 'fa-wifi'}"></i><span><b>${esc(t)}</b><small>${esc(d)}${otec && tecOf(k) !== otec ? ` · origem em ${esc(otec)}` : ''}</small></span></button>`).join('')}`;
+      } else {
+        m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-wifi"></i> Adicionar EMTA (HFC)</div>
+          <button class="cm-opt" onclick="pickGwModel('modem', '')"><i class="fa-solid fa-wifi"></i><span><b>Sagemcom F@ST3896</b><small>DOCSIS 3.1 · Wi-Fi 6 · CA CB RX TX</small></span></button>
+          <p class="text-[10.5px] text-slate-400 px-1 pt-1.5 leading-snug">Outros modelos de EMTA entram aqui quando o simulador de configuração tiver.</p>`;
+      }
+      cont.appendChild(m);
+      const w = m.offsetWidth, h = m.offsetHeight;
+      m.style.left = Math.max(8, Math.min(cont.clientWidth - w - 8, r.left - cr.left)) + 'px';
+      m.style.top = Math.max(8, Math.min(cont.clientHeight - h - 8, r.top - cr.top - h - 6)) + 'px';
+      setTimeout(() => document.addEventListener('mousedown', closeConnectMenu, { once: true }), 0);
+    }
+    function pickGwModel(type, model) {
+      closeConnectMenu();
+      const selOnt = type === 'ont' ? selectedOnt() : null;
+      if (selOnt) { setOntModel(selOnt.id, model); return; }
+      const before = new Set(nodes.map(n => n.id));
+      addNode(type);
+      const n = nodes.find(x => !before.has(x.id) && x.type === type);
+      if (n && model && ONT_MODELS[model]) { n.model = model; refresh(); showToast(`${n.name}: ${ONT_MODELS[model].label} (${ONT_MODELS[model].tec}).`, 'success'); }
+    }
+    function pickTvModel(type, model) {
+      closeConnectMenu();
+      const sel = selectedNodeId && selection.size <= 1 ? byId(selectedNodeId) : null;
+      if (sel && sel.type === type) { setTvModel(sel.id, model); return; }
+      const before = new Set(nodes.map(n => n.id));
+      addNode(type);
+      const n = nodes.find(x => !before.has(x.id) && x.type === type);
+      if (n && model) { n.model = model; refresh(); showToast(`${n.name}: modelo ${tvModelLabel(model)}.`, 'success'); }
+    }
+    function setTvModel(id, model) {
+      const n = byId(id);
+      if (!n || !TV_MODELS_BY[n.type]) return;
+      if (model && !tvModelOk(n.type, model)) return;
+      if ((n.model || '') === (model || '')) return;
+      if (model) n.model = model; else delete n.model;
+      refresh();
+      showToast(`${n.name}: ${model ? 'modelo ' + tvModelLabel(model) : 'modelo genérico'}.`, 'success');
+    }
+    function tvModelPanelHTML(n) {
+      const m = tvModel(n);
+      return `
+        <div class="border-t border-slate-800 pt-2 space-y-1.5">
+          <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Modelo</label>
+          <select onchange="setTvModel('${esc(n.id)}', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
+            <option value="" ${m ? '' : 'selected'}>Genérico (sem modelo)</option>
+            ${TV_MODELS_BY[n.type].map(k => `<option value="${k}" ${m === k ? 'selected' : ''}>${esc(tvModelLabel(k))} · ${esc(TV_MODELS[k].d)}</option>`).join('')}
+          </select>
+        </div>`;
+    }
     const projectTvKind = () => { const n = nodes.find(x => TV_KIND[x.type]); return n ? TV_KIND[n.type] : null; };
     function addNode(type, x, y) {
       if (!isGpon() && TV_KIND[type] && projectTvKind() && projectTvKind() !== TV_KIND[type]) {
@@ -2951,7 +3055,7 @@
             ${equipIcon(n.type, { i: 'text-xl', img: 'w-12 h-9 object-contain shrink-0' })}
             <div class="min-w-0">
               <strong class="text-slate-100 font-bold text-[15px] block leading-tight truncate">${esc(n.name)}</strong>
-              <span class="text-[12px] text-slate-400 block">${EQUIP[n.type].label}</span>
+              <span class="text-[12px] text-slate-400 block">${EQUIP[n.type].label}${tvModel(n) ? ' · ' + esc(tvModelLabel(tvModel(n))) : ''}</span>
             </div>
           </div>
           ${levelsGridHTML(d)}
@@ -3637,7 +3741,7 @@
         const id = uid('node');
         map[c.old] = id;
         const name = (c.type === 'tv' || c.type === 'box') ? nextNumberedName(EQUIP[c.type].name) : NET_DEV[c.type] ? nextNumberedName(NET_DEV[c.type].name) : c.type === 'ont' ? nextNumberedName('ONT') : c.name;
-        nodes.push({ id, type: c.type, name, x: Math.max(0, c.x + off), y: Math.max(0, c.y + off), rot: c.rot, ...(c.type === 'tap' ? { vias: c.vias, ...(c.model ? { model: c.model } : {}) } : {}), inSide: c.inSide, outSide: c.outSide, signals: JSON.parse(JSON.stringify(c.signals)) });
+        nodes.push({ id, type: c.type, name, x: Math.max(0, c.x + off), y: Math.max(0, c.y + off), rot: c.rot, ...(c.type === 'tap' ? { vias: c.vias, ...(c.model ? { model: c.model } : {}) } : {}), ...((c.type === 'ont' && ONT_MODELS[c.model]) || tvModelOk(c.type, c.model) ? { model: c.model } : {}), inSide: c.inSide, outSide: c.outSide, signals: JSON.parse(JSON.stringify(c.signals)) });
         newIds.push(id);
       });
       // Ligações: só entre peças coladas; respeita o limite de 3 pontos de TV por ONT/EMTA
@@ -4066,6 +4170,7 @@
 
             ${isEndpoint(n) ? endpointPropsHTML(n) : ''}
             ${isNetDev(n) ? netDevPanelHTML(n) : ''}
+            ${TV_MODELS_BY[n.type] ? tvModelPanelHTML(n) : ''}
             ${n.type === 'boxtv' ? ecoBoxPanelHTML(n) : ''}
             ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
             ${isEcoEquip(n) ? ecoPanelHTML(n) : ''}
@@ -4405,7 +4510,7 @@
       if (!n.ecoKey) n.ecoKey = uid('eco');
       const c = inputConn(n.id), g = c && byId(c.from), b = n.ecoBox || {};
       const nets = ecoNets(g);
-      return { v: 1, key: n.ecoKey, name: n.name, gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
+      return { v: 1, key: n.ecoKey, name: n.name, ...(tvModel(n) ? { modelo: n.model } : {}), gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
         link: c && c.cableType === 'Wi-Fi' ? 'wifi' : 'cabo', ...(c && c.cableType === 'Wi-Fi' && sigVal(c.rssi) != null ? { rssi: sigVal(c.rssi) } : {}), nets: nets ? nets.map(w => ({ ssid: w.ssid, band: w.band, sec: w.sec, pass: w.pass, iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : null,
         ...(b.done && b.conn ? { done: true, conn: b.conn, ...(b.conn === 'wifi' ? { ssid: b.ssid || '', pass: b.pass || '' } : {}) } : {}),
         o: /^https?:$/.test(location.protocol) ? location.origin : '*' };
@@ -4420,6 +4525,7 @@
       const n = nodes.find(x => x.ecoKey === d.key && x.type === 'boxtv');
       if (!n) return;
       const conn = d.conn === 'wifi' || d.conn === 'cabo' ? d.conn : null;
+      if (typeof d.modelo === 'string' && tvModelOk(n.type, d.modelo) && n.model !== d.modelo && (n.model || d.modelo !== 'S4KCW3')) n.model = d.modelo;   // modelo trocado no box
       n.ecoBox = { done: !!d.done, conn, online: !!d.online, ...(conn === 'wifi' && typeof d.ssid === 'string' ? { ssid: d.ssid.slice(0, 64), pass: String(d.pass || '').slice(0, 64) } : {}), at: Date.now() };
       // Wi-Fi escolhido no box = rede da ligação Wi-Fi do projeto
       const c = inputConn(n.id), g = c && byId(c.from), nets = ecoNets(g);
@@ -5006,7 +5112,7 @@
       return JSON.stringify({
         mode: projectMode,
         limits,
-        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.ecoBox ? { ecoBox: n.ecoBox } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: Math.round(n.x * 10) / 10, y: Math.round(n.y * 10) / 10, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) || tvModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.ecoBox ? { ecoBox: n.ecoBox } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
         connections: connections.map(c => ({ id: c.id, from: c.from, fromPort: c.fromPort, to: c.to, cableType: c.cableType, length: c.length, ...(c.num ? { num: c.num } : {}), ...(c.conectores != null ? { conectores: c.conectores } : {}), ...(c.cableType === 'Wi-Fi' ? { band: c.band || '5', rssi: c.rssi == null ? '' : c.rssi, ...(c.ssid ? { ssid: c.ssid, wpass: c.wpass || '' } : {}) } : {}) }))
       });
     }
@@ -6054,7 +6160,7 @@
         appVersion: 'Versão Prévia ' + APP_VERSION,
         mode: projectMode,
         limits,
-        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.ecoBox ? { ecoBox: n.ecoBox } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
+        nodes: nodes.map(n => ({ id: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, signals: n.signals || {}, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), ...(ontModel(n) || tvModel(n) ? { model: n.model } : {}), ...(n.ecoKey ? { ecoKey: n.ecoKey } : {}), ...(n.ecoCfg ? { ecoCfg: n.ecoCfg } : {}), ...(n.ecoBox ? { ecoBox: n.ecoBox } : {}), ...(n.type === 'tap' ? { vias: tapVias(n), ...(isDG(n) ? { model: 'dg' } : isCTO(n) ? { model: 'cto', tec: n.tec || 'GPON', ...(isDIO(n) ? { org: 'dio' } : {}), ...(n.tags && n.tags.some(Boolean) ? { tags: n.tags } : {}), ...(napMount(n) ? { mount: napMount(n) } : {}) } : {}) } : {}) })),
         connections
       };
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
