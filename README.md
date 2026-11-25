@@ -1,6 +1,6 @@
 # Simulador PRO HFC/G-PON/XGS-PON
 
-**Versão Prévia 0.48** · by BRENDLER™
+**Versão Prévia 0.49** · by BRENDLER™
 
 Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica (GPON / XGS-PON) que roda direto no navegador, no PC, tablet ou celular deitado, inclusive sem internet.
 
@@ -29,6 +29,7 @@ Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica 
 - **Wi-Fi fraco no box**: com RSSI pior que −60 dBm ou rede 2,4 GHz, os canais e vídeos por IP no simulador do box ficam carregando e travando.
 - **Portas LAN por modelo**: F@ST3896 3× 1 Gbps + 1× 2,5 Gbps; ZTE F6645P 4× 1 Gbps + 1× 2,5 Gbps; ZTE F8748Q 4× 1 Gbps + 1× 10 Gbps; ONT genérica 4× 1 Gbps. A porta rápida tem contorno laranja e o cartão mostra o resumo (ex.: LAN 3× 1G + 2,5G).
 - **Rede IoT** só pela página de configuração do EMTA/ONT (o PRO mostra o estado e as redes configuradas com a senha).
+- **Janela do equipamento**: ao clicar num equipamento (EMTA, ONT, Decoder, Box TV, aparelhos de rede), o painel abre em abas: **Resumo** (estado, valores e ações como Acessar página de configuração e Abrir o Box TV), **Sinal** (diagnóstico, como corrigir e o caminho desde o TAP/DIO, recolhível), **Rede** (portas LAN com o que está ligado, redes Wi-Fi com senha, rede IoT) e **Editar** (nome, modelo, sinais no ponto). O botão de estetoscópio no canto de cada cartão abre direto o diagnóstico daquele equipamento, na cor do estado.
 
 ## Reportar bug ou falar com o autor
 

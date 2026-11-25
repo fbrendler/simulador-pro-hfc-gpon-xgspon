@@ -48,6 +48,26 @@
       #zoom-controls { right: 0.5rem !important; bottom: 0.5rem !important; }
       #zoom-controls span:not(#zoom-label) { display: none; }
     }
+    /* Janela do equipamento: abas */
+    .dev-tabs { display: flex; gap: 0.25rem; background: #020617; border: 1px solid #1e293b; border-radius: 0.6rem; padding: 0.2rem; }
+    .dev-tabs button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.3rem; padding: 0.4rem 0.2rem; border-radius: 0.45rem; font-size: 11px; font-weight: 700; color: #94a3b8; }
+    .dev-tabs button:hover { color: #e2e8f0; background: #1e293b; }
+    .dev-tabs button.on { background: #0c4a6e; color: #e0f2fe; }
+    .dev-val { display: flex; flex-direction: column; align-items: center; padding: 0.3rem 0.1rem; border-radius: 0.5rem; background: #020617; border: 1px solid #1e293b; }
+    .dev-val span { font-size: 10px; color: #94a3b8; font-weight: 700; } .dev-val b { font-size: 13px; }
+    .dev-main { width: 100%; font-size: 12px; font-weight: 700; border-radius: 0.5rem; padding: 0.5rem; color: #0f172a; background: #38bdf8; }
+    .dev-main:hover { background: #7dd3fc; }
+    .dev-link { font-size: 11px; font-weight: 700; color: #7dd3fc; }
+    html.light .dev-tabs { background: #f1f5f9; border-color: #cbd5e1; } html.light .dev-tabs button { color: #475569; }
+    html.light .dev-tabs button.on { background: #0369a1; color: #fff; } html.light .dev-val { background: #f8fafc; border-color: #cbd5e1; }
+    html.light .dev-val span { color: #475569; } html.light .dev-link { color: #0369a1; }
+    /* Botão de diagnóstico no cartão do equipamento */
+    .card-diag { position: absolute; top: -12px; right: 14px; width: 24px; height: 24px; border-radius: 9999px; display: flex; align-items: center; justify-content: center;
+      font-size: 11px; background: #0f172a; border: 1.5px solid #34d399; color: #34d399; z-index: 6; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+    .card-diag.warn { border-color: #f59e0b; color: #fbbf24; } .card-diag.bad { border-color: #f43f5e; color: #fb7185; }
+    .card-diag:hover { transform: scale(1.15); }
+    html.light .card-diag { background: #fff; }
+    @media (pointer: coarse) { .card-diag { width: 30px; height: 30px; top: -15px; font-size: 13px; } }
     /* Menu ⋯ (só no celular deitado) */
     #more-wrap { display: none; }
     .mm-i { width: 100%; display: flex; align-items: center; gap: 0.6rem; text-align: left; padding: 0.55rem 0.7rem; border-radius: 0.5rem; font-size: 13px; font-weight: 600; color: #e2e8f0; }
@@ -487,7 +507,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.48';   // Versão Prévia
+    const APP_VERSION = '0.49';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -941,6 +961,8 @@
       return { st: 'on', text: 'online', why: wifi ? `via Wi-Fi ${j ? '"' + j.w.ssid + '" ' : ''}${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` : `via ${gponCableLabel(c)} na ${(gwPorts(ont).find(x => x.id === c.fromPort) || {}).label || 'LAN'} ${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}` };
     }
     const NET_ST = { on: 'ok', warn: 'warn', off: 'bad' };
+    // a ligação Wi-Fi está fora da regra? (2,4 GHz para quem não é câmera, ou RSSI pior que o mínimo)
+    const wifiBad = (c, dev) => !!c && c.cableType === 'Wi-Fi' && (dev && dev.type === 'camera' ? c.band === '5' : (c.band === '2.4' || (sigVal(c.rssi) != null && sigVal(c.rssi) < WIFI_RSSI_MIN)));
     const wifiRule = () => `Wi-Fi: use a rede 5 GHz e RSSI até ${WIFI_RSSI_MIN} dBm.`;
     // Desenho dos aparelhos (sem marca)
     function netDevSVG(type, w) {
@@ -1102,9 +1124,9 @@
             </div>
           </div>
           ${levelsGridHTML(d)}
-          <div class="mt-2 flex justify-between items-center gap-1 text-[12px] [&>span]:text-[11px]"><span class="text-slate-500">dBm</span>${statusBadge(d.status)}</div>
+          <div class="mt-2 flex justify-between items-center gap-1 text-[12px] [&>span]:text-[11px]"><span class="text-slate-400">dBm</span>${statusBadge(d.status)}</div>
           ${ontTecAlert(n) ? '<div class="mt-1.5 text-[11px] leading-snug text-amber-300"><i class="fa-solid fa-triangle-exclamation"></i> Rede marcada como GPON</div>' : ''}
-          <div class="mt-1.5 pb-2 text-[11px] text-slate-500">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-ethernet"></i> ${lanSpec(n)}${netDevsOn(n.id) ? ` · aparelhos: <b class="text-slate-300">${netDevsOn(n.id)}</b>` : ''}</div>
+          <div class="mt-1.5 pb-2 text-[11px] text-slate-400">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-ethernet"></i> ${lanSpec(n)}${netDevsOn(n.id) ? ` · aparelhos: <b class="text-slate-300">${netDevsOn(n.id)}</b>` : ''}</div>
         </div>`;
     }
     function renderPTOSVG(n) {
@@ -1142,7 +1164,7 @@
       return `
         <div class="space-y-2 border-t border-slate-800 pt-2">
           <label class="text-[10px] font-bold text-amber-300 uppercase tracking-wider block">Etiqueta de identificação</label>
-          ${napGroups(n).length > 1 ? '<p class="text-[10px] text-slate-500 leading-snug">A 2ª etiqueta segue a sequência da 1ª; se não for sequencial, edite.</p>' : ''}
+          ${napGroups(n).length > 1 ? '<p class="text-[10px] text-slate-400 leading-snug">A 2ª etiqueta segue a sequência da 1ª; se não for sequencial, edite.</p>' : ''}
           <div class="grid ${napGroups(n).length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5">
             ${napGroups(n).map(([k], i) => `<label class="block"><span class="text-slate-400 text-[10px] block">${napGroups(n).length > 1 ? (i === 0 ? 'NAP portas 1–8' : 'NAP portas 9–16') : isDIO(n) ? 'DIO' : 'NAP'}</span>
               <input type="text" maxlength="24" placeholder="${isDIO(n) ? 'ex.: MM.A195.03.03' : 'ex.: SNCAB 001.01.04'}" value="${esc(napTag(n, i))}" onchange="updateNapTag(${i}, this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-amber-200 font-bold"></label>`).join('')}
@@ -1160,7 +1182,7 @@
               </select>
             </div>
           </div>
-          <p class="text-[10px] text-slate-500 leading-snug">${napGroups(n).length > 1 ? 'NAP 16: as portas 1–8 e 9–16 são duas NAPs, cada uma com a sua potência. ' : ''}${isDIO(n) ? 'Fibra ligada no DIO leva fita autofusão no conector. ' : ''}Meça a potência na porta (DIO/NAP: esperado de ${NAP_LIMITS.max} a ${NAP_LIMITS.min} dBm) e digite aqui. O simulador desconta conectores, fibra, divisor e cordão até a ONT.</p>
+          <p class="text-[10px] text-slate-400 leading-snug">${napGroups(n).length > 1 ? 'NAP 16: as portas 1–8 e 9–16 são duas NAPs, cada uma com a sua potência. ' : ''}${isDIO(n) ? 'Fibra ligada no DIO leva fita autofusão no conector. ' : ''}Meça a potência na porta (DIO/NAP: esperado de ${NAP_LIMITS.max} a ${NAP_LIMITS.min} dBm) e digite aqui. O simulador desconta conectores, fibra, divisor e cordão até a ONT.</p>
           ${originAlert(n) ? `<div class="text-[11px] leading-snug text-amber-200 bg-amber-950/70 border border-amber-600/70 rounded-lg px-2 py-1.5"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> <b>Alerta:</b> ${esc(originAlert(n).text)}</div>` : ''}
         </div>
         <div class="border-t border-slate-800 pt-2 space-y-1.5">
@@ -1171,7 +1193,7 @@
             <button onclick="updateCtoKind('dio', 8)" ${used > 8 ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${isDIO(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">DIO 8</button>
             ${CTO_VIAS.map(v => `<button onclick="updateCtoKind('nap', ${v})" ${v < used ? 'disabled' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 ${!isDIO(n) && v === tapVias(n) ? 'bg-emerald-950/70 border-emerald-500 text-emerald-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">NAP ${v}</button>`).join('')}
           </div>
-          <p class="text-[10px] text-slate-500">${used} de ${tapVias(n)} portas em uso.</p>
+          <p class="text-[10px] text-slate-400">${used} de ${tapVias(n)} portas em uso.</p>
           <ul class="space-y-1">${ports}</ul>
         </div>`;
     }
@@ -1197,9 +1219,9 @@
         <div class="border-t border-slate-800 pt-2">
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Sinal na entrada (dBm)</label>
           ${lv && lv.min != null ? `<div class="grid grid-cols-2 gap-1 font-mono text-[10px] text-center">
-              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-500">MÍN</span><strong class="text-slate-200">${fmt(lv.min)}</strong></div>
-              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-500">MÁX</span><strong class="text-slate-200">${fmt(lv.max)}</strong></div>
-            </div>` : `<p class="text-[11px] text-slate-500">Sem sinal: a entrada não está ligada à CTO (ou a potência não foi informada).</p>`}
+              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">MÍN</span><strong class="text-slate-200">${fmt(lv.min)}</strong></div>
+              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">MÁX</span><strong class="text-slate-200">${fmt(lv.max)}</strong></div>
+            </div>` : `<p class="text-[11px] text-slate-400">Sem sinal: a entrada não está ligada à CTO (ou a potência não foi informada).</p>`}
         </div>
         <div class="border-t border-slate-800 pt-2">
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Saídas</label>
@@ -1216,7 +1238,7 @@
             <h3 class="font-bold text-sm text-slate-100">Editar Fibra</h3>
             <div class="flex items-center gap-1"><button onclick="deleteSelectedConnection()" class="text-rose-400 hover:text-rose-300 p-1" title="Excluir ligação"><i class="fa-solid fa-trash-can"></i></button><button onclick="closePanel()" class="panel-close ml-1" title="Fechar o painel (P)"><i class="fa-solid fa-xmark"></i></button></div>
           </div>
-          <p class="text-[11px] text-slate-300"><b>${esc(src.name)}</b> <i class="fa-solid fa-arrow-right text-slate-500 mx-1"></i> <b>${esc(dst.name)}</b></p>
+          <p class="text-[11px] text-slate-300"><b>${esc(src.name)}</b> <i class="fa-solid fa-arrow-right text-slate-400 mx-1"></i> <b>${esc(dst.name)}</b></p>
           ${tapeEnds(c).length ? `<p class="text-[11px] leading-snug text-slate-200 bg-slate-950 border border-slate-700 rounded-lg px-2 py-1.5"><span style="display:inline-block;width:9px;height:9px;border-radius:9999px;background:#facc15;border:1px solid #854d0e;vertical-align:middle"></span> <b>Fita autofusão</b> no conector ${tapeEnds(c).map(e => e === 0 ? 'do DIO (' + esc(src.name) + ')' : 'da ONT').join(' e ')}: obrigatória.</p>` : ''}
           ${numeradorEditorHTML(c, src)}
           <div>
@@ -1235,15 +1257,15 @@
               <input type="number" min="0" step="1" readonly title="Cabo de fibra: 1 conector em cada ponta (2)" value="${esc(Math.max(0, Math.round(Number(c.conectores) || 0)))}" onchange="updateCableConectores(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-100 font-mono">
             </div>` : ''}
           </div>
-          <p class="text-[10px] text-slate-500 leading-snug">${drop
+          <p class="text-[10px] text-slate-400 leading-snug">${drop
             ? `${GPON_CABLES[c.cableType].name}: fibra ${String(GPON.fibra.min).replace('.', ',')} a ${String(GPON.fibra.max).replace('.', ',')} dB/km pela metragem + cada conector ${String(GPON.conector.min).replace('.', ',')} a ${String(GPON.conector.max).replace('.', ',')} dB.`
             : `Cordão óptico: perda fixa de ${String(GPON.cordao.min).replace('.', ',')} a ${String(GPON.cordao.max).replace('.', ',')} dB (conectores inclusos). O comprimento é só para o levantamento de material.`}</p>
           <div class="border-t border-slate-800 pt-2">
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Atenuação nesta ligação (dB)</label>
             ${drop ? `<div class="mb-1.5 rounded-lg border border-slate-800 bg-slate-950 px-2 py-1"><svg viewBox="0 0 200 16" class="w-full h-4">${gponPathSVG(c.cableType, 'M 6 8 L 194 8', theme === 'light')}</svg></div>` : ''}
             <div class="grid grid-cols-2 gap-1 font-mono text-[10px] text-center">
-              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-500">MÍN</span><strong class="text-slate-200">${fmt2(loss.min)}</strong></div>
-              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-500">MÁX</span><strong class="text-slate-200">${fmt2(loss.max)}</strong></div>
+              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">MÍN</span><strong class="text-slate-200">${fmt2(loss.min)}</strong></div>
+              <div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">MÁX</span><strong class="text-slate-200">${fmt2(loss.max)}</strong></div>
             </div>
           </div>
         </div>`;
@@ -1254,12 +1276,12 @@
       const box = (v, label, cls) => `<div class="bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-1"><span class="text-slate-400 text-[10px] block">${label}</span><b class="text-xs font-mono ${cls}">${v}</b></div>`;
       return `
           <details class="niveis border-t border-slate-800 pt-1" ${limitsOpen ? 'open' : ''} ontoggle="limitsOpen = this.open">
-            <summary class="text-emerald-400"><span><i class="fa-solid fa-chevron-right chev"></i>Faixas de sinal (dBm)</span><span class="text-slate-500 normal-case font-medium"><i class="fa-solid fa-lock"></i> fixos</span></summary>
+            <summary class="text-emerald-400"><span><i class="fa-solid fa-chevron-right chev"></i>Faixas de sinal (dBm)</span><span class="text-slate-400 normal-case font-medium"><i class="fa-solid fa-lock"></i> fixos</span></summary>
             <div class="space-y-2 pt-1">
             <div class="grid grid-cols-3 gap-1.5">
               ${box(`${L.max} a ${L.min}`, 'ONT/ONU OK', 'text-emerald-400')}${box(`< ${L.min}`, 'ONT/ONU fora', 'text-rose-400')}${box(`${NAP_LIMITS.max} a ${NAP_LIMITS.min}`, 'NAP/DIO', 'text-sky-300')}
             </div>
-            <p class="text-[10px] text-slate-500 leading-snug">MÍN = perda mínima do caminho · MÁX = perda máxima. Acima de ${L.max} dBm também fica fora (satura a ONT). Perdas: conector ${String(GPON.conector.min).replace('.', ',')}–${String(GPON.conector.max).replace('.', ',')} dB · cordão ${String(GPON.cordao.min).replace('.', ',')}–${String(GPON.cordao.max).replace('.', ',')} dB · divisor 1:2 ${String(GPON.spl12).replace('.', ',')} dB · fibra ${String(GPON.fibra.min).replace('.', ',')}–${String(GPON.fibra.max).replace('.', ',')} dB/km.</p>
+            <p class="text-[10px] text-slate-400 leading-snug">MÍN = perda mínima do caminho · MÁX = perda máxima. Acima de ${L.max} dBm também fica fora (satura a ONT). Perdas: conector ${String(GPON.conector.min).replace('.', ',')}–${String(GPON.conector.max).replace('.', ',')} dB · cordão ${String(GPON.cordao.min).replace('.', ',')}–${String(GPON.cordao.max).replace('.', ',')} dB · divisor 1:2 ${String(GPON.spl12).replace('.', ',')} dB · fibra ${String(GPON.fibra.min).replace('.', ',')}–${String(GPON.fibra.max).replace('.', ',')} dB/km.</p>
             </div>
           </details>`;
     }
@@ -1472,7 +1494,7 @@
           <div class="report-map">
             <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider mb-3">1. Topologia do Projeto</h3>
             <div class="rounded-xl border border-slate-700 overflow-hidden bg-white">${reportMapSVG()}</div>
-            <p class="text-[10px] text-slate-500 mt-2">Desenho organizado automaticamente (CTO à esquerda, ONTs à direita). Cinza = Drop Low Friction · branco com contorno = Cabo Micro Low · tracejado azul-claro = Fibra Invisível · amarelo = cordão óptico · roxo = RJ45 1,5 m · azul = PONTO ULTRA (RJ45 em metros) · azul pontilhado = Wi-Fi 5 GHz · amarelo pontilhado = Wi-Fi 2,4 GHz · ponto amarelo = fita autofusão obrigatória (DIO e ONT) · etiqueta com número = numerador (amarelo: NAP de poste e DIO; preto: NAP de cordoalha).</p>
+            <p class="text-[10px] text-slate-400 mt-2">Desenho organizado automaticamente (CTO à esquerda, ONTs à direita). Cinza = Drop Low Friction · branco com contorno = Cabo Micro Low · tracejado azul-claro = Fibra Invisível · amarelo = cordão óptico · roxo = RJ45 1,5 m · azul = PONTO ULTRA (RJ45 em metros) · azul pontilhado = Wi-Fi 5 GHz · amarelo pontilhado = Wi-Fi 2,4 GHz · ponto amarelo = fita autofusão obrigatória (DIO e ONT) · etiqueta com número = numerador (amarelo: NAP de poste e DIO; preto: NAP de cordoalha).</p>
           </div>` : ''}
           <div>
             <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider mb-3">2. Levantamento de Materiais</h3>
@@ -1487,10 +1509,10 @@
             <div class="overflow-x-auto border border-slate-800 rounded-xl bg-slate-950">
               <table class="w-full text-left border-collapse">
                 <thead><tr class="border-b border-slate-800 text-[11px] font-bold text-slate-400 bg-slate-900/60"><th class="py-2 px-3">ONT / ONU</th><th class="py-2 px-3">MÍN</th><th class="py-2 px-3">MÁX</th><th class="py-2 px-3">Status</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="4" class="p-4 text-center text-xs text-slate-500">Nenhuma ONT conectada.</td></tr>'}</tbody>
+                <tbody>${rows || '<tr><td colspan="4" class="p-4 text-center text-xs text-slate-400">Nenhuma ONT conectada.</td></tr>'}</tbody>
               </table>
             </div>
-            <p class="text-[10px] text-slate-500 mt-2 font-mono">Sinal em dBm. MÍN = perda mínima · MÁX = perda máxima. ONT/ONU OK de ${L.max} a ${L.min} · fora abaixo de ${L.min} ou acima de ${L.max} · NAP/DIO de ${NAP_LIMITS.max} a ${NAP_LIMITS.min}.</p>
+            <p class="text-[10px] text-slate-400 mt-2 font-mono">Sinal em dBm. MÍN = perda mínima · MÁX = perda máxima. ONT/ONU OK de ${L.max} a ${L.min} · fora abaixo de ${L.min} ou acima de ${L.max} · NAP/DIO de ${NAP_LIMITS.max} a ${NAP_LIMITS.min}.</p>
             ${pathRows ? `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">${pathRows}</div>` : ''}
           </div>
           <div>
@@ -1502,7 +1524,7 @@
             <button onclick="window.print()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2"><i class="fa-solid fa-print"></i> Imprimir / Salvar PDF</button>
             <button onclick="closeReportModal()" class="flex-1 bg-sky-600 hover:bg-sky-500 text-white py-2.5 rounded-xl text-xs font-bold transition">Fechar Relatório</button>
           </div>
-          <p class="text-[10px] text-slate-500 text-center">Simulador PRO HFC/G-PON/XGS-PON · modo GPON / XGS-PON · Versão Prévia ${APP_VERSION} · by BRENDLER™ · gerado em ${new Date().toLocaleString('pt-BR')}</p>
+          <p class="text-[10px] text-slate-400 text-center">Simulador PRO HFC/G-PON/XGS-PON · modo GPON / XGS-PON · Versão Prévia ${APP_VERSION} · by BRENDLER™ · gerado em ${new Date().toLocaleString('pt-BR')}</p>
         </div>`;
       document.body.appendChild(modal);
     }
@@ -1798,7 +1820,7 @@
       cat.groups.forEach(g => {
         const box = document.createElement('div');
         box.className = 'flex flex-col shrink-0';
-        box.innerHTML = `<span class="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-1">${g.label}</span>`;
+        box.innerHTML = `<span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">${g.label}</span>`;
         const row = document.createElement('div');
         row.className = 'flex-1 flex gap-1.5';
         g.items.forEach(item => {
@@ -1814,7 +1836,7 @@
           b.innerHTML = `
             <div class="flex-1 flex items-center justify-center">${thumbHTML(item)}</div>
             <span class="text-[10px] font-semibold text-slate-200 leading-tight text-center">${item.name}</span>
-            ${(() => { const t = current ? (org ? '✓ no projeto' : '✓ selecionado') : blockedTv ? 'TVs via ' + (projectTvKind() === 'hfc' ? 'HFC' : 'IP') + ' no projeto' : item.tag; return t ? `<span class="text-[9px] font-mono text-sky-300 bg-slate-950 px-1 rounded">${t}</span>` : ''; })()}`;
+            ${(() => { const t = current ? (org ? '✓ no projeto' : '✓ selecionado') : blockedTv ? 'TVs via ' + (projectTvKind() === 'hfc' ? 'HFC' : 'IP') + ' no projeto' : item.tag; return t ? `<span class="text-[10px] font-mono text-sky-300 bg-slate-950 px-1 rounded">${t}</span>` : ''; })()}`;
           if (blockedTv) { b.style.opacity = '0.4'; b.title = 'As TVs do projeto são todas via HFC ou todas via IP'; }
           if (current) b.dataset.current = '1';
           if (selNode) b.title = current ? 'Este é o passivo selecionado no projeto' : `Trocar o ${selNode.name} por ${item.name}`;
@@ -3002,6 +3024,16 @@
         else if (isAtt(node.type)) host.innerHTML = renderAttSVG(node);
         else if (isIso(node.type)) host.innerHTML = renderIsoSVG(node);
         else if (isLock(node.type)) host.innerHTML = renderLockSVG(node);
+        if (isDevice(node)) {   // diagnóstico direto no equipamento
+          const sst = isEndpoint(node) ? statusOf(node) : NET_ST[netState(node).st];
+          const b = document.createElement('button');
+          b.className = 'card-diag ' + (sst === 'ok' ? '' : sst === 'warn' ? 'warn' : 'bad');
+          b.title = 'Diagnóstico deste equipamento';
+          b.innerHTML = '<i class="fa-solid fa-stethoscope"></i>';
+          b.onmousedown = e => e.stopPropagation();
+          b.onclick = e => { e.stopPropagation(); openDevDiag(node.id); };
+          el.appendChild(b);
+        }
 
         layer.appendChild(el);
         if (!passive) {
@@ -3072,14 +3104,14 @@
             <div class="text-slate-400">TX: <span class="${originAlert(n) ? 'text-rose-400' : 'text-amber-400'} font-bold">${fmtSig(n.signals.tx)}</span></div>
           </div>
           ${originAlert(n) ? `<div class="mt-1.5 text-[12px] leading-snug text-amber-200 bg-amber-950/70 border border-amber-600/70 rounded-md px-1.5 py-1"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> TX fora de ${originAlert(n).min} a ${originAlert(n).max}. ${originAlert(n).msg}</div>` : ''}
-          <div class="mt-1.5 text-[12px] text-slate-500">Vias em uso: <b class="text-slate-300">${connections.filter(c => c.from === n.id).length}/${tapVias(n)}</b>${isDG(n) ? ' · só RG6 Branco' : ''}</div>
+          <div class="mt-1.5 text-[12px] text-slate-400">Vias em uso: <b class="text-slate-300">${connections.filter(c => c.from === n.id).length}/${tapVias(n)}</b>${isDG(n) ? ' · só RG6 Branco' : ''}</div>
         </div>
       `;
     }
 
     function statusBadge(status) {
       const s = ST[status];
-      return `<span class="shrink-0 px-1.5 py-0.5 rounded border text-[9px] font-bold flex items-center gap-1 ${s.chip}"><i class="fa-solid ${s.icon}"></i>${s.label}</span>`;
+      return `<span class="shrink-0 px-1.5 py-0.5 rounded border text-[10px] font-bold flex items-center gap-1 ${s.chip}"><i class="fa-solid ${s.icon}"></i>${s.label}</span>`;
     }
 
     function renderEMTA3896(n) {
@@ -3104,7 +3136,7 @@
           ${levelsGridHTML(d)}
           <div class="mt-2 flex justify-between items-center gap-1 text-[12px] [&>span]:text-[11px]">${fixChip(n)}${statusBadge(d.status)}</div>
           ${needsMini(n) ? `<button class="mini-lembrete" onclick="event.stopPropagation(); addMini('${esc(n.id)}')" onmousedown="event.stopPropagation()" title="O MINI ISOLATOR fica sempre entre o cabo e o equipamento"><i class="fa-solid fa-triangle-exclamation"></i> Falta MINI ISOLATOR · colocar</button>` : ''}
-          <div class="mt-1.5 pb-2 text-[11px] text-slate-500">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-ethernet"></i> ${lanSpec(n)}${netDevsOn(n.id) ? ` · aparelhos: <b class="text-slate-300">${netDevsOn(n.id)}</b>` : ''}</div>
+          <div class="mt-1.5 pb-2 text-[11px] text-slate-400">${n.iot ? '<span class="text-sky-300 font-bold"><i class="fa-solid fa-wifi"></i> IoT</span> · ' : ''}<i class="fa-solid fa-ethernet"></i> ${lanSpec(n)}${netDevsOn(n.id) ? ` · aparelhos: <b class="text-slate-300">${netDevsOn(n.id)}</b>` : ''}</div>
         </div>
       `;
     }
@@ -3495,7 +3527,7 @@
                 <span style="min-width:30px;padding:0 6px;text-align:center;border-radius:4px;font-weight:800;font-family:ui-monospace,monospace;background:${k.bg};color:${k.fg};border:1px solid ${k.bd}">${esc(nm.num)}</span>
                 <input type="text" maxlength="8" placeholder="${nm.porta}" value="${nm.editado ? esc(nm.num) : ''}" onchange="updateNumerador(this.value)" class="flex-1 bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-100 font-mono font-bold uppercase">
               </div>
-              <p class="text-[10px] text-slate-500 mt-1">Letras e números (até 8). Em branco = número da porta (${nm.porta}).</p>
+              <p class="text-[10px] text-slate-400 mt-1">Letras e números (até 8). Em branco = número da porta (${nm.porta}).</p>
             </div>`;
     }
     // Checklist de instalação: cada item ✔ (ok), ⚠ (falta) ou – (não se aplica)
@@ -3541,7 +3573,7 @@
       return `<div>
             <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider mb-3">${num}. Checklist de instalação · ${isGpon() ? 'GPON / XGS-PON' : 'HFC'}</h3>
             <p class="text-[11px] mb-2 ${pend ? 'text-amber-300' : 'text-emerald-400'}">${pend ? `${pend} item${pend > 1 ? 's' : ''} pendente${pend > 1 ? 's' : ''}` : 'Tudo conferido'}</p>
-            <ul class="space-y-1">${items.map(i => `<li class="flex items-start gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11.5px]"><i class="fa-solid ${ICON[i.st][0]} ${ICON[i.st][1]} mt-0.5"></i><span class="${i.st === 'na' ? 'text-slate-500' : 'text-slate-200'}">${esc(i.txt)}${i.st === 'na' ? ' · não se aplica' : ''}${i.det ? `<span class="block text-[10.5px] ${i.st === 'warn' ? 'text-amber-300' : 'text-slate-400'}">${esc(i.det)}</span>` : ''}</span></li>`).join('')}</ul>
+            <ul class="space-y-1">${items.map(i => `<li class="flex items-start gap-2 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-[11.5px]"><i class="fa-solid ${ICON[i.st][0]} ${ICON[i.st][1]} mt-0.5"></i><span class="${i.st === 'na' ? 'text-slate-400' : 'text-slate-200'}">${esc(i.txt)}${i.st === 'na' ? ' · não se aplica' : ''}${i.det ? `<span class="block text-[10.5px] ${i.st === 'warn' ? 'text-amber-300' : 'text-slate-400'}">${esc(i.det)}</span>` : ''}</span></li>`).join('')}</ul>
           </div>`;
     }
     function numeradorContagem() {
@@ -3855,7 +3887,7 @@
           <ul class="space-y-1">${list.map(n => `
             <li><button data-id="${esc(n.id)}" onclick="selectNode(this.dataset.id)" class="w-full text-left text-[11px] bg-slate-950 hover:bg-slate-800/70 border border-slate-800 rounded-lg px-2 py-1.5 text-slate-200">${esc(n.name)}</button></li>`).join('')}
           </ul>
-          <p class="text-[10px] text-slate-500 leading-snug">Arraste qualquer um deles para mover o grupo. Shift+clique adiciona ou tira itens; Shift+arrastar no fundo seleciona por área; Ctrl+A seleciona tudo. Ctrl+D duplica, Ctrl+C / Ctrl+V copia e cola, setas movem, Delete exclui.</p>
+          <p class="text-[10px] text-slate-400 leading-snug">Arraste qualquer um deles para mover o grupo. Shift+clique adiciona ou tira itens; Shift+arrastar no fundo seleciona por área; Ctrl+A seleciona tudo. Ctrl+D duplica, Ctrl+C / Ctrl+V copia e cola, setas movem, Delete exclui.</p>
         </div>`;
     }
 
@@ -3900,7 +3932,7 @@
             <div class="absolute inset-y-0 bg-emerald-500 ${noMax ? 'rounded-r' : ''}" style="left:${pct(m.warnBelow != null ? m.warnBelow : m.min + mg)}%; width:${pct(noMax ? top : top - mg) - pct(m.warnBelow != null ? m.warnBelow : m.min + mg)}%"></div>
             ${marker}
           </div>
-          <div class="flex justify-between text-[9px] text-slate-500 font-mono mt-0.5">
+          <div class="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
             <span>mín ${m.min}</span><span>${noMax ? 'sem máximo' : 'máx ' + m.max}</span>
           </div>
         </div>
@@ -3921,7 +3953,7 @@
           <div class="flex items-start gap-2">
             ${chip}
             <div class="text-[11px] text-slate-200 leading-snug">
-              ${s.action ? (s.resolves ? '<span class="inline-block mr-1 px-1 rounded text-[9px] font-bold bg-emerald-600 text-white align-middle">RESOLVE</span>' : '<span class="inline-block mr-1 px-1 rounded text-[9px] font-bold bg-slate-700 text-slate-200 align-middle">AJUDA</span>') : ''}${esc(s.text)}
+              ${s.action ? (s.resolves ? '<span class="inline-block mr-1 px-1 rounded text-[10px] font-bold bg-emerald-600 text-white align-middle">RESOLVE</span>' : '<span class="inline-block mr-1 px-1 rounded text-[10px] font-bold bg-slate-700 text-slate-200 align-middle">AJUDA</span>') : ''}${esc(s.text)}
               ${s.note ? `<span class="block text-[10px] text-slate-400 mt-0.5">${esc(s.note)}</span>` : ''}
               ${btn}
             </div>
@@ -3961,7 +3993,7 @@
         <div class="border-t border-slate-800 pt-2">
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Caminho desde ${oName === 'DIO/NAP' ? 'o DIO/NAP' : 'o TAP'}</label>
           <table class="w-full text-[10px]">
-            <thead><tr class="text-slate-500"><th class="text-left font-semibold py-1">Trecho</th>${head}</tr></thead>
+            <thead><tr class="text-slate-400"><th class="text-left font-semibold py-1">Trecho</th>${head}</tr></thead>
             <tbody>
               <tr class="border-t border-slate-800/70">
                 <td class="py-1 pr-1 text-sky-300 font-semibold">${oName === 'DIO/NAP' ? 'Potência na origem' : 'Nível no TAP'}</td>
@@ -4015,7 +4047,7 @@
     }
     function pointSignalsHTML(n, title) {
       const org = originOf(n);
-      if (!n.lv || !org) return `<div class="border-t border-slate-800 pt-2"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sinais no ponto</label><p class="text-[11px] text-slate-500">Ligue o ponto a um TAP ou DG para poder editar os sinais.</p></div>`;
+      if (!n.lv || !org) return `<div class="border-t border-slate-800 pt-2"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Sinais no ponto</label><p class="text-[11px] text-slate-400">Ligue o ponto a um TAP ou DG para poder editar os sinais.</p></div>`;
       const cell = (k, cls) => `
         <label class="block">
           <span class="text-slate-400 text-[10px] block">${k.toUpperCase()} (dBmV)</span>
@@ -4025,18 +4057,111 @@
         <div class="border-t border-slate-800 pt-2 space-y-1.5">
           <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">${title || 'Sinais no ponto (editáveis)'}</label>
           <div class="grid grid-cols-4 gap-1.5">${cell('ca', 'text-slate-100')}${cell('cb', 'text-slate-100')}${cell('rx', 'text-sky-400')}${cell('tx', 'text-amber-400')}</div>
-          <p class="text-[10px] text-slate-500 leading-snug">${org.type === 'tap'
+          <p class="text-[10px] text-slate-400 leading-snug">${org.type === 'tap'
             ? `Digite o valor medido aqui: o simulador ajusta o nível do ${esc(org.name)} e recalcula toda a instalação.`
             : `Sem TAP/DG: digite o sinal medido aqui (ou em qualquer outro ponto). Ele vira a base e todos os pontos são calculados a partir dele.`}</p>
         </div>`;
     }
 
-    function endpointPropsHTML(n) {
+    // ===== Janela do equipamento (abas, como a janela de um aparelho num simulador de redes) =====
+    // Resumo: estado e ações · Sinal: diagnóstico e caminho · Rede: portas, Wi-Fi e IoT · Editar: nome, modelo e sinais no ponto
+    const isDevice = n => !!n && (isEndpoint(n) || isNetDev(n));
+    let devTab = 'resumo', devTabFor = null;
+    function setDevTab(t) { devTab = t; renderProperties(); const p = document.getElementById('properties-panel'); if (p) p.scrollTop = 0; }
+    function openDevDiag(id) { selectNode(id); devTab = isEndpoint(byId(id)) ? 'sinal' : 'resumo'; devTabFor = id; showPanel(); renderProperties(); }
+    function devTabsOf(n) {
+      const t = [['resumo', 'Resumo', 'fa-circle-info']];
+      if (isEndpoint(n)) t.push(['sinal', 'Sinal', 'fa-signal']);
+      if (isGateway(n) || isNetDev(n)) t.push(['rede', 'Rede', 'fa-network-wired']);
+      t.push(['editar', 'Editar', 'fa-pen']);
+      return t;
+    }
+    function devKindLabel(n) {
+      if (n.type === 'ont') return ontModel(n) ? `${ontModel(n).label} · ${ontModel(n).tec}` : 'ONT/ONU genérica';
+      if (n.type === 'modem') return 'EMTA · Sagemcom F@ST3896';
+      const base = EQUIP[n.type] ? EQUIP[n.type].label : NET_DEV[n.type] ? NET_DEV[n.type].label : '';
+      return base + (tvModel(n) ? ' · ' + tvModelLabel(tvModel(n)) : '');
+    }
+    function deviceWindowHTML(n) {
+      if (devTabFor !== n.id) { devTab = 'resumo'; devTabFor = n.id; }
+      const tabs = devTabsOf(n);
+      if (!tabs.some(t => t[0] === devTab)) devTab = 'resumo';
+      const body = devTab === 'sinal' ? devSignalHTML(n) : devTab === 'rede' ? devNetHTML(n) : devTab === 'editar' ? devEditHTML(n) : devSummaryHTML(n);
+      return `
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <h3 class="font-bold text-sm text-slate-100 truncate">${esc(n.name)}</h3>
+              <p class="text-[11px] text-slate-400 truncate">${esc(devKindLabel(n))}</p>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+              <button onclick="duplicateSelection()" class="text-slate-300 hover:text-white p-1" title="Duplicar (Ctrl+D)"><i class="fa-solid fa-clone"></i></button>
+              <button onclick="deleteSelectedNode()" class="text-rose-400 hover:text-rose-300 p-1" title="Excluir (Delete)"><i class="fa-solid fa-trash-can"></i></button>
+              <button onclick="closePanel()" class="panel-close ml-1" title="Fechar o painel (P)"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+          </div>
+          <div class="dev-tabs">${tabs.map(([k, t, ic]) => `<button onclick="setDevTab('${k}')" class="${k === devTab ? 'on' : ''}"><i class="fa-solid ${ic}"></i><span>${t}</span></button>`).join('')}</div>
+          ${body}
+        </div>`;
+    }
+    function devSummaryHTML(n) {
+      let st = '';
+      if (isEndpoint(n)) {
+        const d = diagnose(n);
+        st = `<div class="flex items-center justify-between gap-2"><span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Sinal</span>${statusBadge(d.status)}</div>
+          <div class="grid grid-cols-${d.metrics.length} gap-1">${d.metrics.map(m => `<button onclick="setDevTab('sinal')" class="dev-val"><span>${esc(m.label.split(' ')[0])}</span><b class="font-mono ${ST[m.st].text}">${fmt(m.val)}</b></button>`).join('')}</div>
+          ${d.status !== 'ok' && (d.notes[0] || d.summary) ? `<p class="text-[11px] ${ST[d.status].text} leading-snug">${esc(d.notes[0] || d.summary)}</p>` : ''}
+          ${d.suggestions.length ? `<button onclick="setDevTab('sinal')" class="dev-link"><i class="fa-solid fa-wrench"></i> Como corrigir (${d.suggestions.length})</button>` : ''}`;
+      }
+      const acts = [];
+      if (isEcoEquip(n)) acts.push(`<button onclick="openEquipConfig('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-sliders"></i> Acessar página de configuração</button>`);
+      if (n.type === 'boxtv') acts.push(`<button onclick="openBoxTv('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-tv"></i> Abrir o Box TV</button>`);
+      return `
+        ${st ? `<div class="space-y-1.5">${st}</div>` : ''}
+        ${isNetDev(n) ? netDevPanelHTML(n) : ''}
+        ${isGateway(n) ? `<div class="text-[11px] text-slate-300 leading-snug"><i class="fa-solid fa-ethernet text-slate-400"></i> ${lanSpec(n)} · Wi-Fi${n.iot ? ' · rede IoT habilitada' : ''} · aparelhos: ${netDevsOn(n.id)}</div>` : ''}
+        ${n.type === 'boxtv' && n.ecoBox ? `<div class="text-[11px] text-slate-300 leading-snug">Box: ${n.ecoBox.done ? 'instalação concluída' : 'instalação em andamento'}${n.ecoBox.conn ? ` · ${n.ecoBox.conn === 'wifi' ? 'Wi-Fi ' + esc(n.ecoBox.ssid || '') : 'cabo de rede'}` : ''} · <span class="${n.ecoBox.online ? 'text-emerald-400' : 'text-amber-300'}">${n.ecoBox.online ? 'com internet' : 'sem internet'}</span></div>` : ''}
+        ${acts.length ? `<div class="space-y-1.5">${acts.join('')}</div>` : ''}
+        ${needsMini(n) ? `<button onclick="addMini('${esc(n.id)}')" class="mini-lembrete"><i class="fa-solid fa-triangle-exclamation"></i> Falta MINI ISOLATOR · colocar</button>` : ''}`;
+    }
+    function devSignalHTML(n) { return endpointPropsHTML(n, true); }
+    function gwLanHTML(n) {
+      return `<div class="space-y-1">
+        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Portas</label>
+        ${gwPorts(n).map(p => {
+          const list = p.multi ? connections.filter(c => c.from === n.id && c.fromPort === p.id) : [portConn(n.id, p.id)].filter(Boolean);
+          const who = list.map(c => byId(c.to)).filter(Boolean);
+          return `<div class="flex items-center justify-between gap-2 text-[11px] bg-slate-950 border border-slate-800 rounded-lg px-2 py-1">
+            <span class="font-semibold ${p.fast ? 'text-amber-300' : 'text-slate-200'} whitespace-nowrap">${p.id === 'wifi' ? '<i class="fa-solid fa-wifi"></i> Wi-Fi' : esc(p.label)}</span>
+            <span class="text-slate-400 truncate text-right">${who.length ? who.map(d => `<button data-id="${esc(d.id)}" onclick="selectNode(this.dataset.id)" class="text-sky-300 hover:text-sky-200">${esc(d.name)}</button>`).join(', ') : 'livre'}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+    function devNetHTML(n) {
+      if (isNetDev(n)) {
+        const c = inputConn(n.id);
+        return `${c ? `<button data-id="${esc(c.id)}" onclick="selectConnection(this.dataset.id)" class="dev-main"><i class="fa-solid fa-link"></i> Ver a ligação (${esc(gponCableLabel(c))})</button>` : ''}
+          ${n.type === 'boxtv' ? ecoBoxPanelHTML(n) : ''}`;
+      }
+      return `${gwLanHTML(n)}${isEcoEquip(n) ? ecoNetsHTML(n) : ''}${iotPanelHTML(n)}`;
+    }
+    function devEditHTML(n) {
+      return `
+        <div>
+          <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Nome</label>
+          <input type="text" value="${esc(n.name)}" onchange="updateNodeName(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:border-sky-500">
+        </div>
+        ${TV_MODELS_BY[n.type] ? tvModelPanelHTML(n) : ''}
+        ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
+        ${isEndpoint(n) && n.type !== 'ont' ? pointSignalsHTML(n) : ''}`;
+    }
+    function endpointPropsHTML(n, semPonto) {
       const d = diagnose(n);
       const keys = n.type === 'ont' ? ['min', 'max'] : ['ca', 'cb', 'rx', 'tx'];
       return `
-        ${n.type === 'ont' ? '' : pointSignalsHTML(n)}
-        <div class="space-y-2 border-t border-slate-800 pt-2">
+        ${n.type === 'ont' || semPonto ? '' : pointSignalsHTML(n)}
+        <div class="space-y-2 ${semPonto ? '' : 'border-t border-slate-800 pt-2'}">
           <div class="flex items-center justify-between">
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diagnóstico de Sinal</label>
             ${statusBadge(d.status)}
@@ -4050,7 +4175,7 @@
               <ul class="space-y-1.5">${d.suggestions.map(s => suggestionHTML(s, true)).join('')}</ul>
             </div>` : ''}
         </div>
-        ${pathTableHTML(n, keys)}
+        ${semPonto ? `<details class="niveis border-t border-slate-800 pt-1"><summary class="text-slate-400"><span><i class="fa-solid fa-chevron-right chev"></i>Caminho desde ${isGpon() ? 'o DIO/NAP' : 'o TAP'}</span></summary>${pathTableHTML(n, keys)}</details>` : pathTableHTML(n, keys)}
       `;
     }
 
@@ -4061,7 +4186,7 @@
       const ports = outPorts(n).map(p => {
         const c = portConn(n.id, p.id);
         const dest = c ? byId(c.to) : null;
-        const after = lv ? `<span class="font-mono text-[10px] text-slate-500">RX ${fmt(lv.rx == null ? null : lv.rx - p.loss)} · TX ${fmt(lv.tx == null ? null : lv.tx + p.loss)}</span>` : '';
+        const after = lv ? `<span class="font-mono text-[10px] text-slate-400">RX ${fmt(lv.rx == null ? null : lv.rx - p.loss)} · TX ${fmt(lv.tx == null ? null : lv.tx + p.loss)}</span>` : '';
         const right = c
           ? `<button data-id="${esc(c.id)}" onclick="selectConnection(this.dataset.id)" class="text-[10px] text-sky-300 hover:text-sky-200 font-semibold text-right truncate max-w-[130px]" title="Selecionar cabo">→ ${esc(dest ? dest.name : '')} (${c.length} m)</button>`
           : `<span class="flex gap-1"><button data-port="${esc(p.id)}" onclick="startLinkFromPanel(this.dataset.port)" class="px-2 py-0.5 rounded bg-emerald-900/60 hover:bg-emerald-800 border border-emerald-700 text-emerald-300 text-[10px] font-bold">Ligar cabo</button><button data-port="${esc(p.id)}" onclick="addLock(selectedNodeId, this.dataset.port)" title="Tampar esta saída com TRAVA LOCK" class="px-2 py-0.5 rounded bg-amber-900/60 hover:bg-amber-800 border border-amber-600 text-amber-200 text-[10px] font-bold animate-pulse">TRAVA LOCK</button></span>`;
@@ -4089,14 +4214,14 @@
             <button onclick="rotateSelected(90)" class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-200 font-semibold"><i class="fa-solid fa-rotate-right"></i> 90°</button>
             <button onclick="rotateSelected(0)" class="py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-200 font-semibold">Zerar</button>
           </div>
-          <p class="text-[10px] text-slate-500 mt-1">No mapa, arraste a alça azul acima da peça para girar com o mouse.</p>
+          <p class="text-[10px] text-slate-400 mt-1">No mapa, arraste a alça azul acima da peça para girar com o mouse.</p>
         </div>
         <div class="border-t border-slate-800 pt-2">
           ${!isGpon() && lv && originOf(n) ? pointSignalsHTML(n, 'Nível na entrada (IN) · editável') : `<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Nível na entrada (IN)</label>`}
           ${!isGpon() && lv && originOf(n) ? '' : lv ? `
             <div class="grid grid-cols-4 gap-1 font-mono text-[10px] text-center">
-              ${['ca', 'cb', 'rx', 'tx'].map(k => `<div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-500">${k.toUpperCase()}</span><strong class="text-slate-200">${fmt(lv[k])}</strong></div>`).join('')}
-            </div>` : `<p class="text-[11px] text-slate-500">Sem sinal: a entrada não está ligada a um TAP.</p>`}
+              ${['ca', 'cb', 'rx', 'tx'].map(k => `<div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">${k.toUpperCase()}</span><strong class="text-slate-200">${fmt(lv[k])}</strong></div>`).join('')}
+            </div>` : `<p class="text-[11px] text-slate-400">Sem sinal: a entrada não está ligada a um TAP.</p>`}
         </div>
         <div class="border-t border-slate-800 pt-2">
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Portas de saída</label>
@@ -4159,17 +4284,17 @@
           ${originAlerts().map(a => `<div class="text-[11px] leading-snug text-amber-200 bg-amber-950/70 border border-amber-600/70 rounded-lg px-2 py-1.5"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> <b>Alerta na origem:</b> ${esc(a.text)}</div>`).join('')}
 
           ${nodes.some(isNetDev) ? `<div class="space-y-1"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pontos de TV e dispositivos</label>${nodes.filter(isNetDev).map(n => `<button data-id="${esc(n.id)}" onclick="selectNode(this.dataset.id)" class="w-full flex items-center justify-between gap-2 bg-slate-950 hover:bg-slate-800/70 border border-slate-800 rounded-lg px-2 py-1"><span class="text-[11px] font-bold text-slate-100 truncate">${esc(n.name)}</span><span class="net-chip net-${netState(n).st}">● ${netState(n).text.split(' · ')[0]}</span></button>`).join('')}</div>` : ''}
-          ${eps.length ? `<ul class="space-y-1.5">${list}</ul>` : `<p class="text-xs text-slate-500 text-center py-4">Nenhum equipamento de cliente no projeto.</p>`}
+          ${eps.length ? `<ul class="space-y-1.5">${list}</ul>` : `<p class="text-xs text-slate-400 text-center py-4">Nenhum equipamento de cliente no projeto.</p>`}
 
           ${isGpon() ? gponLimitsHTML() : `<details class="niveis border-t border-slate-800 pt-1" ${limitsOpen ? 'open' : ''} ontoggle="limitsOpen = this.open">
-            <summary class="text-sky-400"><span><i class="fa-solid fa-chevron-right chev"></i>Níveis padrão (dBmV)</span><span class="text-slate-500 normal-case font-medium"><i class="fa-solid fa-lock"></i> fixos</span></summary>
+            <summary class="text-sky-400"><span><i class="fa-solid fa-chevron-right chev"></i>Níveis padrão (dBmV)</span><span class="text-slate-400 normal-case font-medium"><i class="fa-solid fa-lock"></i> fixos</span></summary>
             <div class="space-y-2 pt-1">
             <div class="grid grid-cols-3 gap-1.5">
               ${lim('txMin', 'TX mín')}${lim('txMax', 'TX máx')}
               ${lim('rxMin', 'RX mín')}${lim('rxMax', 'RX máx')}
               ${lim('caMin', 'CA mín')}${lim('cbMin', 'CB mín')}
             </div>
-            <p class="text-[10px] text-slate-500 leading-snug">Padrão fixo para todos os equipamentos (não pode ser alterado). Dentro do padrão = verde; fora = vermelho.</p>
+            <p class="text-[10px] text-slate-400 leading-snug">Padrão fixo para todos os equipamentos (não pode ser alterado). Dentro do padrão = verde; fora = vermelho.</p>
             </div>
           </details>`}
         </div>
@@ -4182,6 +4307,8 @@
 
       if (selection.size > 1) {
         panel.innerHTML = multiPanelHTML();
+      } else if (selectedNodeId && byId(selectedNodeId) && isDevice(byId(selectedNodeId))) {
+        panel.innerHTML = deviceWindowHTML(byId(selectedNodeId));
       } else if (selectedNodeId && byId(selectedNodeId)) {
         const n = byId(selectedNodeId);
 
@@ -4262,7 +4389,7 @@
               </div>
             </div>
 
-            <p class="text-[11px] text-slate-300"><b>${esc(src.name)}</b> <i class="fa-solid fa-arrow-right text-slate-500 mx-1"></i> <b>${esc(dst.name)}</b></p>
+            <p class="text-[11px] text-slate-300"><b>${esc(src.name)}</b> <i class="fa-solid fa-arrow-right text-slate-400 mx-1"></i> <b>${esc(dst.name)}</b></p>
 
             ${numeradorEditorHTML(c, src)}
 
@@ -4273,7 +4400,7 @@
                 <option value="RG6 Preto" ${c.cableType === 'RG6 Preto' ? 'selected' : ''}>RG6 Preto</option>
                 <option value="RG11" ${c.cableType === 'RG11' ? 'selected' : ''} ${c.cableType !== 'RG11' && rg11Problem(src, c.length) ? 'disabled' : ''}>RG11${c.cableType !== 'RG11' && rg11Problem(src, c.length) ? ' (não permitido aqui)' : ''}</option>
               </select>
-              <p class="text-[10px] text-slate-500 mt-1">RG11 só no cabo de entrada (saindo do TAP) acima de ${RG11_MIN} m.</p>
+              <p class="text-[10px] text-slate-400 mt-1">RG11 só no cabo de entrada (saindo do TAP) acima de ${RG11_MIN} m.</p>
               ${isDG(src) ? `<p class="text-[10px] text-violet-300 mt-1">Cabo saindo do DG: só RG6 Branco.</p>` : ''}
             </div>
 
@@ -4285,7 +4412,7 @@
             <div class="border-t border-slate-800 pt-2">
               <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Atenuação neste cabo (dB)</label>
               <div class="grid grid-cols-4 gap-1 font-mono text-[10px] text-center">
-                ${['CA', 'CB', 'RX', 'TX'].map(k => `<div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-500">${k}</span><strong class="text-slate-200">${(cab[k] * c.length).toFixed(1)}</strong></div>`).join('')}
+                ${['CA', 'CB', 'RX', 'TX'].map(k => `<div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">${k}</span><strong class="text-slate-200">${(cab[k] * c.length).toFixed(1)}</strong></div>`).join('')}
               </div>
             </div>
           </div>
@@ -4341,7 +4468,7 @@
             <button onclick="updateOriginType('dg', 4)" ${used > 4 ? 'disabled title="Há mais de 4 cabos ligados"' : ''} class="py-1 rounded-lg border text-[11px] font-bold disabled:opacity-40 disabled:cursor-not-allowed ${isDG(n) ? 'bg-violet-950/70 border-violet-500 text-violet-300' : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'}">DG 4</button>
           </div>
           ${isDG(n) ? `<p class="text-[11px] text-violet-300 bg-violet-950/60 border border-violet-700/60 rounded-lg px-2 py-1">DG: 4 vias fixas. Só é permitido cabo RG6 Branco.</p>` : ''}
-          <p class="text-[10px] text-slate-500">${used} de ${tapVias(n)} vias em uso. Cada via aceita um cabo.</p>
+          <p class="text-[10px] text-slate-400">${used} de ${tapVias(n)} vias em uso. Cada via aceita um cabo.</p>
           <ul class="space-y-1">${ports}</ul>
         </div>`;
     }
@@ -4612,6 +4739,14 @@
           </div>` : ''}
         </div>`;
     }
+    function ecoNetsHTML(n) {
+      const cfg = n.ecoCfg, nets = cfg && cfg.nets || [];
+      if (!cfg) return `<p class="text-[11px] text-slate-400 leading-snug">Redes Wi-Fi: ainda não configuradas. Use <b>Acessar página de configuração</b> no Resumo.</p>`;
+      return `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
+        <b class="text-slate-200">Redes Wi-Fi configuradas</b>
+        ${nets.length ? nets.map(w => `<div class="mt-1"><span class="block truncate"><i class="fa-solid fa-wifi ${w.iot ? 'text-amber-400' : 'text-sky-400'}"></i> <b class="text-slate-100">${esc(w.ssid)}</b> <span class="text-slate-400">· ${esc(wifiBandLabel(w))}${w.iot ? ' · IoT' : ''}${w.hidden ? ' · oculta' : ''}</span></span><span class="block text-slate-400 pl-4">senha: <b class="font-mono text-slate-200">${w.sec === 'NENHUM' ? '(aberta)' : esc(w.pass || '')}</b></span></div>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
+      </div>`;
+    }
     function ecoPanelHTML(n) {
       const cfg = n.ecoCfg, model = ecoModel(n);
       const nets = cfg && cfg.nets || [];
@@ -4622,7 +4757,7 @@
           <div class="text-[11px] text-slate-400 leading-snug">${ECO_LABEL[model]}${n.type === 'ont' && !n.model ? ' (ONT genérica = G-PON)' : ''}, com os níveis de sinal deste projeto.</div>
           ${cfg ? `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
             <b class="text-slate-200">Rede configurada</b>
-            ${nets.length ? nets.map(w => `<div class="mt-1"><span class="block truncate"><i class="fa-solid fa-wifi ${w.iot ? 'text-amber-400' : 'text-sky-400'}"></i> <b class="text-slate-100">${esc(w.ssid)}</b> <span class="text-slate-500">· ${esc(wifiBandLabel(w))}${w.iot ? ' · IoT' : ''}${w.hidden ? ' · oculta' : ''}</span></span><span class="block text-slate-400 pl-4">senha: <b class="font-mono text-slate-200">${w.sec === 'NENHUM' ? '(aberta)' : esc(w.pass || '')}</b></span></div>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
+            ${nets.length ? nets.map(w => `<div class="mt-1"><span class="block truncate"><i class="fa-solid fa-wifi ${w.iot ? 'text-amber-400' : 'text-sky-400'}"></i> <b class="text-slate-100">${esc(w.ssid)}</b> <span class="text-slate-400">· ${esc(wifiBandLabel(w))}${w.iot ? ' · IoT' : ''}${w.hidden ? ' · oculta' : ''}</span></span><span class="block text-slate-400 pl-4">senha: <b class="font-mono text-slate-200">${w.sec === 'NENHUM' ? '(aberta)' : esc(w.pass || '')}</b></span></div>`).join('') : '<span class="block text-amber-300">Nenhuma rede Wi-Fi ativa</span>'}
           </div>` : ''}
         </div>`;
     }
@@ -4635,7 +4770,7 @@
             <option value="" ${m ? '' : 'selected'}>ONT/ONU genérica</option>
             ${Object.keys(ONT_MODELS).map(k => `<option value="${k}" ${n.model === k ? 'selected' : ''}>${ONT_MODELS[k].label} (${ONT_MODELS[k].tec})</option>`).join('')}
           </select>
-          ${m ? `<div class="flex gap-2 items-center"><img src="${m.img}" alt="" class="w-10 h-20 object-contain shrink-0"><div class="text-[11px] text-slate-300 leading-snug"><b>${m.label}</b> · ${m.tec}<br>Descida: <b class="font-mono">${m.down}</b><br>Subida: <b class="font-mono">${m.up}</b><br><span class="text-slate-500">RX OK de −8 a −27 dBm</span></div></div>` : ''}
+          ${m ? `<div class="flex gap-2 items-center"><img src="${m.img}" alt="" class="w-10 h-20 object-contain shrink-0"><div class="text-[11px] text-slate-300 leading-snug"><b>${m.label}</b> · ${m.tec}<br>Descida: <b class="font-mono">${m.down}</b><br>Subida: <b class="font-mono">${m.up}</b><br><span class="text-slate-400">RX OK de −8 a −27 dBm</span></div></div>` : ''}
           ${ontTecAlert(n) ? `<div class="text-[11px] leading-snug text-amber-200 bg-amber-950/70 border border-amber-600/70 rounded-lg px-2 py-1.5"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i> <b>Alerta:</b> ${esc(ontTecAlert(n))}</div>` : ''}
         </div>`;
     }
@@ -4648,7 +4783,7 @@
             <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider">Rede IoT (2,4 GHz)</label>
             <span class="net-chip ${g.iot ? 'net-on' : 'net-off'}">● ${g.iot ? 'habilitada' : 'desabilitada'}</span>
           </div>
-          <p class="text-[10px] text-slate-500 leading-snug">Para a Câmera Wi-Fi. Habilite ou desabilite na página de configuração ${g.type === 'modem' ? 'do EMTA' : 'da ONT'}.${cams ? ` Câmeras: ${cams}.` : ''}</p>
+          <p class="text-[10px] text-slate-400 leading-snug">Para a Câmera Wi-Fi. Habilite ou desabilite na página de configuração ${g.type === 'modem' ? 'do EMTA' : 'da ONT'}.${cams ? ` Câmeras: ${cams}.` : ''}</p>
         </div>`;
     }
     function closeConnectMenu() { const m = document.getElementById('connect-menu'); if (m) m.remove(); }
@@ -4750,7 +4885,7 @@
         <p class="text-[11px] text-slate-400 leading-snug">A rede e a senha são escolhidas nas telas do box (primeiro uso ou Configurações › Rede).</p>
         <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">RSSI (dBm)</span>
           <input type="text" inputmode="decimal" placeholder="ex.: -55" value="${sigVal(c.rssi) == null ? '' : esc(c.rssi)}" onchange="updateWifi('rssi', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold"></label>
-        <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${wifiRule()}</p>`;
+        ${wifiBad(c, dev) ? `<p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${wifiRule()}</p>` : ''}`;
     }
     function wifiPickerHTML(c, g, dev) {
       const nets = ecoNets(g), j = wifiJoin(c, g), pick = wifiPick && wifiPick.conn === c.id ? wifiPick : null;
@@ -4760,7 +4895,7 @@
         return `<button onclick="wifiPickNet(${i})" class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs ${sel ? 'bg-slate-800' : 'hover:bg-slate-800/70'}">
           <i class="fa-solid fa-wifi ${w.iot ? 'text-amber-400' : 'text-sky-400'}"></i>
           <span class="min-w-0 flex-1"><b class="text-slate-100 block truncate">${esc(w.ssid)}</b><span class="text-[10px] text-slate-400">${on ? '<b class="text-emerald-400">Conectado</b> · ' : ''}${esc(wifiBandLabel(w))}${w.iot ? ' · IoT' : ''}</span></span>
-          ${w.sec === 'NENHUM' ? '<span class="text-[10px] text-amber-300">aberta</span>' : '<i class="fa-solid fa-lock text-slate-500 text-[10px]"></i>'}
+          ${w.sec === 'NENHUM' ? '<span class="text-[10px] text-amber-300">aberta</span>' : '<i class="fa-solid fa-lock text-slate-400 text-[10px]"></i>'}
         </button>`;
       };
       const pw = pick ? (pick.i < 0 ? { sec: 'WPA2' } : nets[pick.i]) : null;
@@ -4770,7 +4905,7 @@
           <div class="rounded-lg border border-slate-700 bg-slate-950 overflow-hidden">
             ${vis.length ? vis.map(row).join('<div class="border-t border-slate-800"></div>') : '<p class="px-2 py-2 text-[11px] text-amber-300">Nenhuma rede Wi-Fi visível.</p>'}
             <div class="border-t border-slate-800"></div>
-            <button onclick="wifiPickNet(-1)" class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-slate-300 ${pick && pick.i < 0 ? 'bg-slate-800' : 'hover:bg-slate-800/70'}"><i class="fa-solid fa-plus text-slate-500"></i> Adicionar rede oculta</button>
+            <button onclick="wifiPickNet(-1)" class="w-full flex items-center gap-2 px-2 py-1.5 text-left text-xs text-slate-300 ${pick && pick.i < 0 ? 'bg-slate-800' : 'hover:bg-slate-800/70'}"><i class="fa-solid fa-plus text-slate-400"></i> Adicionar rede oculta</button>
           </div>
         </div>
         ${pw ? `<div class="space-y-1.5 border border-sky-700 rounded-lg p-2">
@@ -4785,7 +4920,7 @@
         </div>` : ''}
         <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">RSSI (dBm)</span>
           <input type="text" inputmode="decimal" placeholder="ex.: -55" value="${sigVal(c.rssi) == null ? '' : esc(c.rssi)}" onchange="updateWifi('rssi', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold"></label>
-        <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede IoT (2,4 GHz).' : wifiRule()}</p>`;
+        ${wifiBad(c, dev) ? `<p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede IoT (2,4 GHz).' : wifiRule()}</p>` : ''}`;
     }
     function netLinkPanelHTML(c) {
       const ont = byId(c.from), dev = byId(c.to), ns = netState(dev);
@@ -4797,7 +4932,7 @@
             <h3 class="font-bold text-sm text-slate-100">Ligação de rede</h3>
             <div class="flex items-center gap-1"><button onclick="deleteSelectedConnection()" class="text-rose-400 hover:text-rose-300 p-1" title="Excluir ligação"><i class="fa-solid fa-trash-can"></i></button>${X}</div>
           </div>
-          <p class="text-[11px] text-slate-300"><b>${esc(ont.name)}</b> · ${esc((gwPorts(ont).find(x => x.id === c.fromPort) || {}).label || '')} <i class="fa-solid fa-arrow-right text-slate-500 mx-1"></i> <b>${esc(dev.name)}</b></p>
+          <p class="text-[11px] text-slate-300"><b>${esc(ont.name)}</b> · ${esc((gwPorts(ont).find(x => x.id === c.fromPort) || {}).label || '')} <i class="fa-solid fa-arrow-right text-slate-400 mx-1"></i> <b>${esc(dev.name)}</b></p>
           <div>
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tipo</label>
             <select onchange="updateCableType(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
@@ -4815,7 +4950,7 @@
               <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">RSSI (dBm)</span>
                 <input type="text" inputmode="decimal" placeholder="ex.: -55" value="${sigVal(c.rssi) == null ? '' : esc(c.rssi)}" onchange="updateWifi('rssi', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold"></label>
             </div>
-            <p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede 2,4 GHz.' : wifiRule()}</p>
+            ${wifiBad(c, dev) ? `<p class="text-[11px] text-amber-300 leading-snug"><i class="fa-solid fa-triangle-exclamation"></i> ${dev.type === 'camera' ? 'A Câmera Wi-Fi usa a rede 2,4 GHz.' : wifiRule()}</p>` : `<p class="text-[11px] text-slate-400 leading-snug">${dev.type === 'camera' ? 'Câmera Wi-Fi: rede 2,4 GHz.' : wifiRule()}</p>`}
             ${isEcoEquip(ont) ? `<p class="text-[11px] text-slate-400 leading-snug"><i class="fa-solid fa-sliders text-sky-400"></i> Para escolher a rede e digitar a senha, configure ${ont.type === 'modem' ? 'o' : 'a'} ${esc(ont.name)} em <b>Acessar página de configuração</b>.</p>` : ''}`}
           <div><span class="net-chip net-${ns.st}">● ${ns.text}</span><p class="text-[11px] text-slate-400 mt-1">${esc(ns.why)}</p></div>
         </div>`;
@@ -4840,7 +4975,7 @@
           ${ns.iot ? `<button onclick="openEquipConfig('${esc(ns.iot)}')" class="w-full py-1.5 rounded-lg text-[11px] font-bold" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-sliders"></i> Habilitar a rede IoT na configuração</button>` : ''}
           ${ns.st === 'off' && !ns.iot && !ns.box ? `<button onclick="openConnectMenu('${esc(n.id)}', this)" class="w-full py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 text-[11px] text-rose-200 font-bold"><i class="fa-solid fa-plug"></i> Conectar (cabo, Wi-Fi ou PONTO ULTRA)</button>` : ''}
           ${c ? `<button data-id="${esc(c.id)}" onclick="selectConnection(this.dataset.id)" class="w-full py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-[11px] text-slate-200 font-semibold">Editar a ligação (${esc(gponCableLabel(c))})</button>` : ''}
-          <p class="text-[10px] text-slate-500 leading-snug">${usesPatch(n) ? NET_DEV[n.type].label + ' via IP: Wi-Fi, cabo RJ45 1,5 m ou PONTO ULTRA (acima de 1,5 m).' : n.type === 'soundbox' ? 'Sound Box: de preferência PONTO ULTRA; Wi-Fi não recomendado.' : NET_DEV[n.type].label + ': Wi-Fi ou PONTO ULTRA (cabo de rede em metros).'} ${isTvPoint(n) ? 'Até ' + NET_MAX_TV + ' pontos de TV ' + GW().por + '.' : 'Dispositivo da rede do cliente.'} ${wifiRule()}</p>
+          <p class="text-[10px] text-slate-400 leading-snug">${usesPatch(n) ? NET_DEV[n.type].label + ' via IP: Wi-Fi, cabo RJ45 1,5 m ou PONTO ULTRA (acima de 1,5 m).' : n.type === 'soundbox' ? 'Sound Box: de preferência PONTO ULTRA; Wi-Fi não recomendado.' : NET_DEV[n.type].label + ': Wi-Fi ou PONTO ULTRA (cabo de rede em metros).'} ${isTvPoint(n) ? 'Até ' + NET_MAX_TV + ' pontos de TV ' + GW().por + '.' : 'Dispositivo da rede do cliente.'} ${wifiRule()}</p>
         </div>`;
     }
     function updateCableLength(val) {
@@ -5324,7 +5459,7 @@
         ${item('fa-envelope', 'text-sky-400', 'Contato', CONTACT_EMAIL, 'closeMenus(); openContact()')}
         ${SITE_URL ? item('fa-globe', 'text-emerald-400', 'Abrir versão online', SITE_URL, `closeMenus(); window.open('${SITE_URL}', '_blank')`) : ''}
         ${GITHUB_REPO ? item('fa-code-branch', 'text-slate-300', 'Código no GitHub', GITHUB_REPO.replace('https://', ''), `closeMenus(); window.open('${GITHUB_REPO}', '_blank')`) : ''}
-        <div class="border-t border-slate-800 mt-1 px-3 py-2 text-[10px] text-slate-500">Simulador PRO HFC/G-PON/XGS-PON · Versão Prévia ${APP_VERSION} · by BRENDLER™</div>`;
+        <div class="border-t border-slate-800 mt-1 px-3 py-2 text-[10px] text-slate-400">Simulador PRO HFC/G-PON/XGS-PON · Versão Prévia ${APP_VERSION} · by BRENDLER™</div>`;
     }
     function openContact() {
       const subject = `Contato – Simulador PRO HFC/G-PON/XGS-PON ${APP_VERSION}`;
@@ -5371,13 +5506,13 @@
           <label class="flex items-center gap-2 text-[11px] text-slate-300">
             <input id="bug-project" type="checkbox" checked class="accent-sky-500"> Incluir um resumo do projeto atual (peças, cabos e níveis da origem)
           </label>
-          <p class="text-[10px] text-slate-500 leading-snug">O relato já leva a versão do simulador, o navegador e o tamanho da tela. Se quiser mandar o projeto completo, use Salvar → Só o projeto (.json) e anexe no e-mail.</p>
+          <p class="text-[10px] text-slate-400 leading-snug">O relato já leva a versão do simulador, o navegador e o tamanho da tela. Se quiser mandar o projeto completo, use Salvar → Só o projeto (.json) e anexe no e-mail.</p>
           <div class="grid ${GITHUB_REPO ? 'grid-cols-3' : 'grid-cols-2'} gap-2">
             <button onclick="sendBugReport('email')" class="py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold"><i class="fa-solid fa-envelope"></i> Enviar por e-mail</button>
             ${GITHUB_REPO ? `<button onclick="sendBugReport('github')" class="py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-[11px] font-bold"><i class="fa-solid fa-code-branch"></i> Abrir no GitHub</button>` : ''}
             <button onclick="sendBugReport('copy')" class="py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-100 text-[11px] font-bold"><i class="fa-solid fa-copy"></i> Copiar texto</button>
           </div>
-          <p class="text-[10px] text-slate-500">E-mail: ${CONTACT_EMAIL}</p>
+          <p class="text-[10px] text-slate-400">E-mail: ${CONTACT_EMAIL}</p>
         </div>`;
       document.body.appendChild(w);
       setTimeout(() => { const t = document.getElementById('bug-what'); if (t) t.focus(); }, 50);
@@ -5573,13 +5708,13 @@
         <button onclick="closeMenus(); ${fn}()" class="w-full text-left px-2 py-1.5 rounded-lg hover:bg-slate-800 flex items-center gap-2.5">
           ${num(n)}
           <span class="flex-1 min-w-0"><b class="block text-xs text-slate-100 truncate">${name}</b><span class="block text-[10px] text-slate-400 truncate">${desc}</span></span>
-          <span class="shrink-0 text-[9px] font-bold uppercase text-slate-400 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5">exemplo</span>
+          <span class="shrink-0 text-[10px] font-bold uppercase text-slate-400 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5">exemplo</span>
         </button>`;
       const mine = userScenarios.map((sc, i) => `
         <div class="flex items-center gap-1 rounded-lg hover:bg-slate-800">
           <button data-id="${esc(sc.id)}" onclick="openUserScenario(this.dataset.id)" class="flex-1 min-w-0 text-left px-2 py-1.5 flex items-center gap-2.5">
             ${num(i + 2)}
-            <span class="min-w-0"><b class="block text-xs text-slate-100 truncate">${esc(sc.name)}<span class="ml-1 text-[9px] font-bold uppercase rounded px-1 border ${sc.state && sc.state.mode === 'gpon' ? 'text-emerald-300 bg-emerald-950 border-emerald-700/60' : 'text-sky-300 bg-sky-950 border-sky-700/60'}">${sc.state && sc.state.mode === 'gpon' ? 'GPON' : 'HFC'}</span>${sc.id === activeScenarioId ? ' <span class="ml-1 text-[9px] font-bold uppercase text-violet-300 bg-violet-950 border border-violet-700/60 rounded px-1">aberto</span>' : ''}</b><span class="block text-[10px] text-slate-400 truncate">${sc.state.nodes.length ? sc.state.nodes.length + ' componentes' : 'em branco'} · salvo em ${new Date(sc.savedAt).toLocaleDateString('pt-BR')}</span></span>
+            <span class="min-w-0"><b class="block text-xs text-slate-100 truncate">${esc(sc.name)}<span class="ml-1 text-[10px] font-bold uppercase rounded px-1 border ${sc.state && sc.state.mode === 'gpon' ? 'text-emerald-300 bg-emerald-950 border-emerald-700/60' : 'text-sky-300 bg-sky-950 border-sky-700/60'}">${sc.state && sc.state.mode === 'gpon' ? 'GPON' : 'HFC'}</span>${sc.id === activeScenarioId ? ' <span class="ml-1 text-[10px] font-bold uppercase text-violet-300 bg-violet-950 border border-violet-700/60 rounded px-1">aberto</span>' : ''}</b><span class="block text-[10px] text-slate-400 truncate">${sc.state.nodes.length ? sc.state.nodes.length + ' componentes' : 'em branco'} · salvo em ${new Date(sc.savedAt).toLocaleDateString('pt-BR')}</span></span>
           </button>
           <button data-id="${esc(sc.id)}" onclick="renameScenario(this.dataset.id)" title="Renomear" class="shrink-0 w-8 h-8 rounded-md text-slate-400 hover:text-slate-100 hover:bg-slate-700"><i class="fa-solid fa-pen text-[11px]"></i></button>
           <button data-id="${esc(sc.id)}" onclick="deleteScenario(this.dataset.id)" title="Excluir" class="shrink-0 w-8 h-8 mr-1 rounded-md text-rose-400 hover:text-rose-300 hover:bg-slate-700"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
@@ -6074,7 +6209,7 @@
           <div class="report-map">
             <h3 class="text-xs font-bold text-sky-400 uppercase tracking-wider mb-3">1. Topologia do Projeto</h3>
             <div class="rounded-xl border border-slate-700 overflow-hidden bg-white">${reportMapSVG()}</div>
-            <p class="text-[10px] text-slate-500 mt-2">Desenho organizado automaticamente (origem à esquerda, equipamentos à direita). Cabos: azul = RG6 branco · cinza = RG6 preto · roxo (mais grosso) = RG11. Borda dos equipamentos: verde OK, laranja atenção, vermelho fora da faixa.</p>
+            <p class="text-[10px] text-slate-400 mt-2">Desenho organizado automaticamente (origem à esquerda, equipamentos à direita). Cabos: azul = RG6 branco · cinza = RG6 preto · roxo (mais grosso) = RG11. Borda dos equipamentos: verde OK, laranja atenção, vermelho fora da faixa.</p>
           </div>` : ''}
 
           <div>
@@ -6121,11 +6256,11 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${endpointsRows || '<tr><td colspan="7" class="p-4 text-center text-xs text-slate-500">Nenhum equipamento final conectado.</td></tr>'}
+                  ${endpointsRows || '<tr><td colspan="7" class="p-4 text-center text-xs text-slate-400">Nenhum equipamento final conectado.</td></tr>'}
                 </tbody>
               </table>
             </div>
-            <p class="text-[10px] text-slate-500 mt-2 font-mono">Níveis em dBmV. Padrão: TX ${L.txMin} a ${L.txMax} · RX ${L.rxMin} a ${L.rxMax} · CA ≥ ${L.caMin} · CB ≥ ${L.cbMin}${L.margin > 0 ? ` · margem de alerta ${L.margin} dB` : ''}</p>
+            <p class="text-[10px] text-slate-400 mt-2 font-mono">Níveis em dBmV. Padrão: TX ${L.txMin} a ${L.txMax} · RX ${L.rxMin} a ${L.rxMax} · CA ≥ ${L.caMin} · CB ≥ ${L.cbMin}${L.margin > 0 ? ` · margem de alerta ${L.margin} dB` : ''}</p>
           </div>
 
           <div>
@@ -6147,7 +6282,7 @@
               Fechar Relatório
             </button>
           </div>
-          <p class="text-[10px] text-slate-500 text-center">Simulador PRO HFC/G-PON/XGS-PON · Versão Prévia ${APP_VERSION} · by BRENDLER™ · gerado em ${new Date().toLocaleString('pt-BR')}</p>
+          <p class="text-[10px] text-slate-400 text-center">Simulador PRO HFC/G-PON/XGS-PON · Versão Prévia ${APP_VERSION} · by BRENDLER™ · gerado em ${new Date().toLocaleString('pt-BR')}</p>
         </div>
       `;
 
