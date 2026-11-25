@@ -507,7 +507,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.51';   // Versão Prévia
+    const APP_VERSION = '0.52';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -704,6 +704,11 @@
     const isCTO = n => !!n && n.type === 'tap' && n.model === 'cto';
     const CTO_VIAS = [8, 16];
     const isDIO = n => !!n && n.type === 'tap' && n.model === 'cto' && n.org === 'dio';   // DIO: 8 portas; NAP: 8 ou 16
+    // Migração HFC → GPON: no projeto HFC dá para trocar o EMTA por uma ONT ligada na fibra (DIO/NAP, fibras, divisor óptico, PTO).
+    // A fibra é só para a internet: as TVs via HFC continuam no coaxial.
+    const isOptNode = n => !!n && (isCTO(n) || isOptPassive(n.type) || n.type === 'ont');
+    const optCtx = n => isGpon() || isOptNode(n);   // peça (ou projeto) na conta óptica
+    const isOptOriginItem = t => /^(ctoc?\d+|dio8)$/.test(String(t));
     const napMount = n => isCTO(n) && !isDIO(n) ? (n.mount === 'cordoalha' ? 'cordoalha' : 'poste') : null;
     const MOUNT_LABEL = { poste: 'Poste', cordoalha: 'Cordoalha' };
     const potKey = portIdx => portIdx > 8 ? 'pot2' : 'pot';                                 // NAP 16: portas 9–16 = segunda NAP
@@ -854,6 +859,8 @@
       if (isNetDev(target) && !isGateway(srcL)) return `${target.name} se liga ${GW().na} (porta LAN ou Wi-Fi).`;
       if (isGateway(srcL) && isTvPoint(target) && netCount(srcL.id) >= NET_MAX_TV) return `${GW().A} aceita até ${NET_MAX_TV} pontos de TV.`;
       if (target.type === 'tap') return isCTO(target) ? 'O DIO/NAP é a origem do sinal e não possui entrada.' : 'O TAP é a origem do sinal e não possui entrada.';
+      if (!isGpon() && isOptNode(srcL) && !isOptNode(target)) return 'Da fibra só se liga divisor óptico, PTO ou ONT. Na migração HFC → GPON a fibra é só para a internet: as TVs via HFC continuam no coaxial.';
+      if (!isGpon() && !isOptNode(srcL) && isOptNode(target)) return `${target.name} recebe fibra: ligue a partir do DIO/NAP, de um divisor óptico ou do PTO.`;
       if (inputConn(target.id)) return `A entrada de "${target.name}" já está ocupada.`;
       if (isAncestor(target.id, linkSource.nodeId)) return 'Essa ligação criaria um laço na rede.';
       return null;
@@ -900,6 +907,7 @@
     };
     const isNetDev = n => !!n && !!NET_DEV[n.type];
     const isTvPoint = n => isNetDev(n) && NET_DEV[n.type].kind === 'tv';
+    const isIpBox = n => !!n && (n.type === 'boxtv' || n.type === 'soundbox');   // abrem o simulador do box pela rede (Wi-Fi ou cabo)
     const usesPatch = n => !!n && (n.type === 'boxtv' || n.type === 'tvapp');   // Box TV e TV APP: RJ45 1,5 m, PONTO ULTRA acima de 1,5 m ou Wi-Fi
     const allowsPatch = n => usesPatch(n) || (!!n && n.type === 'soundbox');     // RJ45 1,5 m: Box TV, TV APP e Sound Box
     const ultraCost = n => n && n.type === 'soundbox' ? 'grátis' : 'com custo ($)';   // PONTO ULTRA é grátis só para a Sound Box
@@ -940,10 +948,10 @@
       if (!c || !isGateway(ont)) return { st: 'off', text: 'offline', why: `Ligue ${GW().na}: porta LAN (cabo) ou Wi-Fi.` };
       if (!['ok', 'warn'].includes(statusOf(ont))) return { st: 'off', text: 'offline', why: `${ont.name} sem sinal OK.` };
       const wifi = c.cableType === 'Wi-Fi';
+      const j = wifi ? wifiJoin(c, ont) : null, gw = `${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}`, bx = n.type === 'soundbox' ? 'Na Sound Box (Abrir a Sound Box)' : 'No Box TV (Abrir o Box TV)';
+      if (j && j.err && isIpBox(n)) return { st: 'off', text: j.err === 'pick' ? 'offline · instalar no box' : j.err === 'gone' ? 'offline · rede não encontrada' : 'offline · senha incorreta',
+        why: j.err === 'pick' ? `${bx}, faça a instalação e conecte na rede Wi-Fi ${gw}.` : `A rede "${c.ssid}" mudou ${gw}. ${bx}, vá em Configurações › Rede e conecte de novo.`, box: n.id };
       if (wifi && n.type === 'soundbox') return { st: 'warn', text: 'online · Wi-Fi não recomendado', why: 'Prefira cabo de rede (PONTO ULTRA) para a Sound Box. ' + wifiRule() };
-      const j = wifi ? wifiJoin(c, ont) : null, gw = `${ont.type === 'modem' ? 'do' : 'da'} ${ont.name}`;
-      if (j && j.err && n.type === 'boxtv') return { st: 'off', text: j.err === 'pick' ? 'offline · instalar no box' : j.err === 'gone' ? 'offline · rede não encontrada' : 'offline · senha incorreta',
-        why: j.err === 'pick' ? `No Box TV (Abrir o Box TV), faça a instalação e conecte na rede Wi-Fi ${gw}.` : `A rede "${c.ssid}" mudou ${gw}. No Box TV (Abrir o Box TV), vá em Configurações › Rede e conecte de novo.`, box: n.id };
       if (j && j.err === 'pick') return { st: 'off', text: 'offline · escolher rede Wi-Fi', why: `Escolha a rede Wi-Fi ${gw} e digite a senha.`, pick: c.id };
       if (j && j.err === 'gone') return { st: 'off', text: 'offline · rede não encontrada', why: `A rede "${c.ssid}" não existe mais ${gw} (nome alterado ou rede desligada). Conecte de novo.`, pick: c.id };
       if (j && j.err === 'pass') return { st: 'off', text: 'offline · senha incorreta', why: `A senha da rede "${c.ssid}" ${gw} mudou. Conecte de novo com a senha nova.`, pick: c.id };
@@ -1414,7 +1422,7 @@
         applyLoadedState(st);
       } else if (m === 'gpon') loadScenarioGpon1();
       else loadScenario1();
-      showToast(m === 'gpon' ? 'Modo GPON / XGS-PON: DIO/NAP, fibras, divisor 1:2, PTO, cordão óptico, ONT e pontos de TV (Box TV e Sound Box).' : 'Modo HFC: rede coaxial (TAP/DG, passivos, RG6/RG11).', 'info');
+      showToast(m === 'gpon' ? 'Modo GPON / XGS-PON: DIO/NAP, fibras, divisor 1:2, PTO, cordão óptico, ONT e pontos de TV (Box TV e Sound Box).' : 'Modo HFC: rede coaxial (TAP/DG, passivos, RG6/RG11). Para migrar a internet para GPON, use as peças "Fibra · migração GPON" e a ONT.', 'info');
     }
 
     // --- Cenários de exemplo GPON ---
@@ -1609,7 +1617,7 @@
         { label: 'TV via IP (até 3 no EMTA)', items: [
           { type: 'boxtv', name: 'Box TV via IP', tag: 'modelo', info: 'Box TV via IP: clique para escolher o modelo. Liga no EMTA por Wi-Fi (rede escolhida no próprio box), cabo RJ45 1,5 m ou PONTO ULTRA.' },
           { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga no EMTA por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' },
-          { type: 'soundbox', name: 'Sound Box', tag: '', info: 'Sound Box: liga no EMTA, de preferência por PONTO ULTRA (cabo de rede em metros). O Wi-Fi funciona, mas não é recomendado.' }
+          { type: 'soundbox', name: 'Sound Box', tag: 'modelo', info: 'Sound Box: clique para escolher o modelo. Liga no EMTA, de preferência por PONTO ULTRA (cabo de rede em metros). O Wi-Fi funciona, mas não é recomendado.' }
         ] },
         { label: 'TV via HFC (coaxial)', items: [
           { type: 'tv', name: 'Decoder', tag: 'modelo', info: 'Decoder (coaxial): clique para escolher o modelo. Mede CA, CB, RX e TX; leva MINI ISOLATOR.' },
@@ -1649,7 +1657,7 @@
         { label: 'TV via IP (até 3 por ONT)', items: [
           { type: 'boxtv', name: 'Box TV', tag: 'modelo', info: 'Box TV: clique para escolher o modelo. Liga na ONT por Wi-Fi (rede escolhida no próprio box) ou pelo cabo RJ45 1,5 m.' },
           { type: 'tvapp', name: 'TV APP', tag: '', info: 'TV APP: Smart TV com o aplicativo de TV. Liga na ONT por Wi-Fi (5 GHz, RSSI até −60 dBm), cabo RJ45 1,5 m ou PONTO ULTRA.' },
-          { type: 'soundbox', name: 'Sound Box', tag: '', info: 'Sound Box (quadrada): de preferência por cabo RJ45 em metros (conectores inclusos). O Wi-Fi funciona, mas não é recomendado.' }
+          { type: 'soundbox', name: 'Sound Box', tag: 'modelo', info: 'Sound Box (quadrada): clique para escolher o modelo. De preferência por cabo RJ45 em metros (conectores inclusos). O Wi-Fi funciona, mas não é recomendado.' }
         ] },
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
@@ -1659,6 +1667,16 @@
         { label: 'NAP de cordoalha', items: CTO_VIAS.map(v => ({ type: 'ctoc' + v, name: `NAP cordoalha ${v}`, tag: `${v} portas`, info: `NAP de cordoalha, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa deitada presa na cordoalha. Informe a potência medida (0 a −25 dBm).` })) }
       ] }
     ];
+    // HFC → GPON (migração): no HFC aparecem também as peças da fibra, só para ligar a internet numa ONT no lugar do EMTA
+    (() => {
+      const cat = (P, id) => P.find(c => c.id === id), MIG = ' Migração HFC → GPON: a fibra é só para a internet; as TVs via HFC continuam no coaxial.';
+      const gi = (id, label) => cat(PALETTE_GPON, id).groups.find(g => g.label.startsWith(label)).items;
+      const mig = it => ({ ...it, info: it.info + MIG });
+      cat(PALETTE, 'origem').groups.push({ label: 'Fibra · migração GPON', items: [...gi('origem', 'DIO'), gi('origem', 'NAP de poste')[0], gi('origem', 'NAP de cordoalha')[0]].map(mig) });
+      cat(PALETTE, 'cabos').groups.push({ label: 'Fibra · migração GPON', items: gi('cabos', 'Tipo de ligação óptica').map(mig) });
+      cat(PALETTE, 'passivos').groups.push({ label: 'Óptico · migração GPON', items: [...gi('passivos', 'Divisor óptico'), ...gi('passivos', 'Terminação óptica')].map(mig) });
+      cat(PALETTE, 'equip').groups.find(g => g.label === 'Internet').items.push(mig({ ...gi('equip', 'Internet')[0], name: 'ONT (migração)' }));
+    })();
     // Ordem do dock: Origem, Cabos, Passivos, Equipamentos; nos cabos, coaxial/fibra antes da rede
     const CAT_ORDER = ['origem', 'cabos', 'passivos', 'equip'];
     [PALETTE, PALETTE_GPON].forEach(P => {
@@ -1701,6 +1719,7 @@
         showToast('Esse já é o passivo selecionado. Para adicionar outro igual, arraste-o para o mapa.', 'info');
         return true;
       }
+      if (isOptPassive(n.type) !== isOptPassive(type)) return false;   // óptico e coaxial não se trocam: adiciona um novo
       const before = NODE_DEFS[n.type].label;
       if (!changeNodeType(n.id, type)) return true;   // changeNodeType já avisa (saídas insuficientes)
       if (NODE_DEFS[type].fixed) n.rot = 0;
@@ -1726,11 +1745,13 @@
       return true;
     }
     // Origem (só existe uma por projeto: TAP, DG ou CTO)
-    const projectOrigin = () => nodes.find(n => n.type === 'tap') || null;
+    const coaxOrigin = () => nodes.find(n => n.type === 'tap' && !isCTO(n)) || null, optOrigin = () => nodes.find(isCTO) || null;
+    const projectOrigin = () => isGpon() ? optOrigin() : coaxOrigin() || optOrigin();
+    const originFor = t => isGpon() || isOptOriginItem(t) ? optOrigin() : coaxOrigin();   // HFC: TAP/DG (TV) e DIO/NAP (internet)
     const isOriginItem = t => /^(tap[248]|dg|ctoc?\d+|dio8)$/.test(String(t));
     const originKey = n => isDIO(n) ? 'dio8' : isCTO(n) ? (napMount(n) === 'cordoalha' ? 'ctoc' : 'cto') + tapVias(n) : isDG(n) ? 'dg' : 'tap' + tapVias(n);
     function swapOrigin(type) {
-      const org = projectOrigin();
+      const org = originFor(type);
       if (!org) return false;
       if (originKey(org) === type) { showToast('Essa já é a origem do projeto.', 'info'); return true; }
       selection.clear(); selectedConnectionId = null; selectedNodeId = org.id;
@@ -1826,7 +1847,7 @@
         g.items.forEach(item => {
           const selNode = !item.cable && canSwap(item.type) ? swapTarget() : null;
           const selConn = item.cable ? selectedCable() : null;
-          const org = !item.cable && isOriginItem(item.type) ? projectOrigin() : null;
+          const org = !item.cable && isOriginItem(item.type) ? originFor(item.type) : null;
           const selOnt = !item.cable && ONT_ITEM[item.type] != null ? selectedOnt() : null;
           const current = (!!selOnt && (selOnt.model || '') === ONT_ITEM[item.type]) || (!!selNode && selNode.type === item.type) || (!!selConn && selConn.cableType === item.cable) || (!!org && originKey(org) === item.type);
           const active = (item.cable && item.cable === activeCableType && !selConn) || current;
@@ -1889,18 +1910,21 @@
     // Modelos de TV do Simulador BOX_TV (mesmos códigos do box.html). Híbridos (HFC + IP) têm "CW" no nome; Z4KCW6/Z4KW6 é só IP;
     // os decoders SAG4KC362/363 (4K) e HHDC2/THDC4 (HD) são só cabo. Sem modelo escolhido = genérico.
     const TV_MODELS = {
-      S4KCW3: { d: 'híbrido (HFC + IP)' }, S4KCW4S: { d: 'Sound Box · híbrido' }, S4KCW5: { d: 'híbrido (HFC + IP)' }, K4KCW5: { d: 'híbrido (HFC + IP)' },
+      S4KCW3: { d: 'híbrido (HFC + IP)' }, S4KCW4S: { label: 'S4KCW4S', d: 'Sound Box · Box TV com caixa de som' }, S4KCW5: { d: 'híbrido (HFC + IP)' }, K4KCW5: { d: 'híbrido (HFC + IP)' },
       S4KW1: { d: 'só IP' }, S4KW2: { d: 'só IP' }, S4KW3: { d: 'só IP' }, S4KW5: { d: 'só IP' }, Z4KCW6: { label: 'Z4KCW6 / Z4KW6', d: 'ZTE · só IP' },
       SAG4KC362: { d: 'Sagemcom 4K · só cabo' }, SAG4KC363: { d: 'Sagemcom 4K · só cabo' }, HHDC2: { d: 'Humax HD · só cabo' }, THDC4: { d: 'Technicolor HD · só cabo' }
     };
     const TV_MODELS_BY = {
-      boxtv: ['S4KCW3', 'S4KCW4S', 'S4KCW5', 'K4KCW5', 'S4KW1', 'S4KW2', 'S4KW3', 'S4KW5', 'Z4KCW6'],
-      box: ['S4KCW3', 'S4KCW4S', 'S4KCW5', 'K4KCW5'],
+      boxtv: ['S4KCW3', 'S4KCW5', 'K4KCW5', 'S4KW1', 'S4KW2', 'S4KW3', 'S4KW5', 'Z4KCW6'],
+      box: ['S4KCW3', 'S4KCW5', 'K4KCW5'],
+      soundbox: ['S4KCW4S'],   // a Sound Box tem o próprio item no dock (não repete nos Box TV)
       tv: ['SAG4KC362', 'SAG4KC363', 'HHDC2', 'THDC4']
     };
     const tvModelOk = (type, m) => !!TV_MODELS_BY[type] && TV_MODELS_BY[type].includes(m);
     const tvModel = n => n && tvModelOk(n.type, n.model) ? n.model : null;
     const tvModelLabel = m => (TV_MODELS[m] && TV_MODELS[m].label) || m;
+    // Lista do submenu sem repetir: no HFC os híbridos (HFC + IP) ficam só no Box TV via HFC; o Box TV via IP mostra os só IP
+    const tvMenuModels = (type, cur) => (TV_MODELS_BY[type] || []).filter(k => k === cur || isGpon() || type !== 'boxtv' || /só IP/.test(TV_MODELS[k].d));
     // submenu do dock: escolher o modelo ao adicionar (ou trocar o modelo do selecionado do mesmo tipo)
     function openModelMenu(type, anchor) {
       closeConnectMenu();
@@ -1911,12 +1935,12 @@
       const m = document.createElement('div');
       m.id = 'connect-menu';
       m.style.maxHeight = (cont.clientHeight - 16) + 'px'; m.style.overflowY = 'auto';
-      if (TV_MODELS_BY[type].length > 5) m.style.width = '30rem';   // muitos modelos: 2 colunas, sem rolar
+      if (tvMenuModels(type).length > 5) m.style.width = '30rem';   // muitos modelos: 2 colunas, sem rolar
       m.onmousedown = e => e.stopPropagation();
       m.onclick = e => e.stopPropagation();
-      const label = type === 'boxtv' ? 'Box TV via IP' : type === 'box' ? 'Box TV via HFC' : 'Decoder';
+      const label = type === 'boxtv' ? (isGpon() ? 'Box TV' : 'Box TV via IP') : type === 'box' ? 'Box TV via HFC' : type === 'soundbox' ? 'Sound Box' : 'Decoder';
       m.innerHTML = `<div class="cm-title"><i class="fa-solid fa-tv"></i> ${troca ? `Modelo do ${esc(troca.name)}` : `Adicionar ${label}`}</div>
-        <div style="display:grid;grid-template-columns:${TV_MODELS_BY[type].length > 5 ? '1fr 1fr' : '1fr'};column-gap:0.35rem">${TV_MODELS_BY[type].map(k => `<button class="cm-opt" onclick="pickTvModel('${type}', '${k}')"><i class="fa-solid ${troca && troca.model === k ? 'fa-circle-check' : 'fa-tv'}"></i><span><b>${esc(tvModelLabel(k))}</b><small>${esc(TV_MODELS[k].d)}</small></span></button>`).join('')}
+        <div style="display:grid;grid-template-columns:${tvMenuModels(type).length > 5 ? '1fr 1fr' : '1fr'};column-gap:0.35rem">${tvMenuModels(type).map(k => `<button class="cm-opt" onclick="pickTvModel('${type}', '${k}')"><i class="fa-solid ${troca && troca.model === k ? 'fa-circle-check' : 'fa-tv'}"></i><span><b>${esc(tvModelLabel(k))}</b><small>${esc(TV_MODELS[k].d)}</small></span></button>`).join('')}
         ${troca ? '' : `<button class="cm-opt" onclick="pickTvModel('${type}', '')"><i class="fa-solid fa-tv"></i><span><b>Genérico</b><small>sem modelo definido</small></span></button>`}</div>`;
       cont.appendChild(m);
       const w = m.offsetWidth, h = m.offsetHeight;
@@ -1985,7 +2009,7 @@
           <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Modelo</label>
           <select onchange="setTvModel('${esc(n.id)}', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
             <option value="" ${m ? '' : 'selected'}>Genérico (sem modelo)</option>
-            ${TV_MODELS_BY[n.type].map(k => `<option value="${k}" ${m === k ? 'selected' : ''}>${esc(tvModelLabel(k))} · ${esc(TV_MODELS[k].d)}</option>`).join('')}
+            ${tvMenuModels(n.type, m).map(k => `<option value="${k}" ${m === k ? 'selected' : ''}>${esc(tvModelLabel(k))} · ${esc(TV_MODELS[k].d)}</option>`).join('')}
           </select>
         </div>`;
     }
@@ -1999,9 +2023,11 @@
       }
       const id = 'node_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
       let vias, model;
-      if ((/^tap[248]?$/.test(type) || type === 'dg' || /^ctoc?\d+$/.test(type) || type === 'dio8') && nodes.some(n => n.type === 'tap')) {
-        const org = nodes.find(n => n.type === 'tap');
-        showToast('Só pode haver uma origem por projeto. Para trocar entre TAP e DG ou mudar as vias, use o painel da origem.', 'warning');
+      if ((isOriginItem(type) || type === 'tap') && originFor(type)) {
+        const org = originFor(type);
+        showToast(isGpon() ? 'Só pode haver uma origem por projeto. Para trocar entre DIO e NAP ou mudar as portas, use o painel da origem.'
+          : isOptOriginItem(type) ? 'O projeto já tem um DIO/NAP (a fibra da internet). Para trocar entre DIO e NAP ou mudar as portas, use o painel da origem.'
+          : 'Só pode haver um TAP ou DG por projeto. Para trocar entre TAP e DG ou mudar as vias, use o painel da origem.', 'warning');
         selectNode(org.id);
         return;
       }
@@ -2102,11 +2128,11 @@
       if (isGateway(byId(linkSource.nodeId))) { connectNet(byId(linkSource.nodeId), linkSource.portId, target); return; }
       // A ligação só é criada depois que a distância é informada no pop-up
       let cableType = activeCableType;
-      if (isNetCable(cableType)) cableType = isGpon() ? 'Drop' : 'RG6';
-      if (isGpon() && !isGponCable(cableType)) cableType = 'Drop';
-      if (!isGpon() && isGponCable(cableType)) cableType = 'RG6';
-      const srcN = byId(linkSource.nodeId);
-      if (!isGpon() && srcN && srcN.type === 'tap' && !isDG(srcN) && cableType === 'RG6') {
+      const srcN = byId(linkSource.nodeId), gp = optCtx(srcN);
+      if (isNetCable(cableType)) cableType = gp ? 'Drop' : 'RG6';
+      if (gp && !isGponCable(cableType)) cableType = 'Drop';
+      if (!gp && isGponCable(cableType)) cableType = 'RG6';
+      if (!gp && srcN && srcN.type === 'tap' && !isDG(srcN) && cableType === 'RG6') {
         cableType = 'RG6 Preto';
         showToast('Do TAP Rede externa sai cabo drop: o cabo será RG6 Preto, com CABLE ISOLATOR automático.', 'info');
       }
@@ -2114,7 +2140,7 @@
         cableType = DG_CABLE;
         showToast('No DG só é permitido cabo RG6 Branco: o cabo será RG6 Branco.', 'warning');
       }
-      if (isGpon() && cableType === 'Cordão óptico') {   // cordão óptico: tamanho fixo, liga direto
+      if (gp && cableType === 'Cordão óptico') {   // cordão óptico: tamanho fixo, liga direto
         const conn = { id: uid('conn'), from: linkSource.nodeId, fromPort: linkSource.portId, to: targetId, cableType, length: CORDAO_M };
         linkSource = null;
         connections.push(conn);
@@ -2156,7 +2182,7 @@
       const src = byId(pendingConn.from), dst = byId(pendingConn.to);
       const a = portPos(src, pendingConn.fromPort), b = portPos(dst, 'in');
       const canvas = document.getElementById('canvas-container');
-      const gp = isGpon(), cordao = pendingConn.cableType === 'Cordão óptico', rj = pendingConn.cableType === 'RJ45';
+      const gp = optCtx(src), cordao = pendingConn.cableType === 'Cordão óptico', rj = pendingConn.cableType === 'RJ45';
       const W = 232, H = gp ? 200 : 150;
       const inCls = 'w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-sky-500';
       const popupFields = (rj && !gp) ? `
@@ -2260,7 +2286,7 @@
         showToast(`PONTO ULTRA de ${length} m (${ultraCost(byId(conn.to))}) ligado: ${byId(conn.to).name} fica online quando ${GW().A.toLowerCase()} estiver com sinal OK.`, 'success');
         return;
       }
-      if (isGpon()) {
+      if (optCtx(byId(pendingConn.from))) {
         const ci = document.getElementById('conn-popup-input');
         const k = ci ? Math.round(parseFloat(String(ci.value).replace(',', '.'))) : 0;
         if (isNaN(length) || length < 0 || (ci && (isNaN(k) || k < 0))) {
@@ -2338,7 +2364,7 @@
       });
       // HFC sem TAP/DG: a peça do topo (sem cabo de entrada) é o ponto de partida.
       // O sinal dela é calculado a partir de qualquer ponto medido (Sinais no ponto).
-      if (!isGpon()) nodes.filter(n => n.type !== 'tap' && !n.lv && !inputConn(n.id)).forEach(root => {
+      if (!isGpon()) nodes.filter(n => n.type !== 'tap' && !isOptNode(n) && !n.lv && !inputConn(n.id)).forEach(root => {
         const s = root.signals || {};
         root.lv = { ca: sigVal(s.ca), cb: sigVal(s.cb), rx: sigVal(s.rx), tx: sigVal(s.tx) };
         walkSignals(root, new Set([root.id]));
@@ -3826,10 +3852,10 @@
     function pasteClip(clip, off) {
       const map = {}, newIds = [];
       let skipped = false;
-      const okModo = t => isGpon() ? (t === 'ont' || isOptPassive(t) || !!NET_DEV[t] || t === 'tap') : (t !== 'ont' && !isOptPassive(t));
+      const okModo = t => isGpon() ? (t === 'ont' || isOptPassive(t) || !!NET_DEV[t] || t === 'tap') : true;   // HFC aceita as peças da migração para GPON
       const motivos = new Set();
       clip.nodes.forEach(c => {
-        if (c.type === 'tap' && nodes.some(n => n.type === 'tap')) { skipped = true; return; }   // uma origem só
+        if (c.type === 'tap' && (c.model === 'cto' ? optOrigin() : coaxOrigin())) { skipped = true; return; }   // uma origem de cada (TAP/DG e DIO/NAP)
         if (!okModo(c.type)) { motivos.add(`peças de outro modo não entram no ${isGpon() ? 'GPON' : 'HFC'}`); return; }
         if (!isGpon() && TV_KIND[c.type] && projectTvKind() && projectTvKind() !== TV_KIND[c.type]) { motivos.add(`as TVs do projeto são todas via ${projectTvKind() === 'hfc' ? 'HFC' : 'IP'}`); return; }
         const id = uid('node');
@@ -3982,7 +4008,7 @@
       const start = {};
       keys.forEach(k => start[k] = k === 'tx' ? n.lv[k] - total[k] : n.lv[k] + total[k]);
       const sign = k => (k === 'tx' ? '+' : '−');
-      const KL = { min: 'MÍN', max: 'MÁX' }, oName = isGpon() ? 'DIO/NAP' : 'TAP';
+      const KL = { min: 'MÍN', max: 'MÁX' }, oName = optCtx(n) ? 'DIO/NAP' : 'TAP';
       const head = keys.map(k => `<th class="py-1 px-1 text-right">${KL[k] || k.toUpperCase()}</th>`).join('');
       const rows = n.path.map(st => `
         <tr class="border-t border-slate-800/70">
@@ -4015,7 +4041,7 @@
       let cur = n, guard = 0;
       while (cur && guard++ < 1000) {
         const c = inputConn(cur.id);
-        if (!c) return cur.type === 'tap' || !isGpon() ? cur : null;
+        if (!c) return cur.type === 'tap' || !optCtx(n) ? cur : null;
         cur = byId(c.from);
       }
       return null;
@@ -4023,7 +4049,7 @@
     // Sinal medido/digitado no ponto: ajusta o nível da origem e recalcula toda a instalação
     function updatePointSignal(key, val) {
       const n = byId(selectedNodeId);
-      if (!n || !n.lv || n.type === 'tap' || isGpon()) return;
+      if (!n || !n.lv || n.type === 'tap' || optCtx(n)) return;
       const v = parseFloat(String(val).replace(',', '.'));
       if (isNaN(v) && String(val).trim() === '') { renderProperties(); return; }
       if (isNaN(v)) { renderProperties(); return; }
@@ -4115,7 +4141,7 @@
       }
       const acts = [];
       if (isEcoEquip(n)) acts.push(`<button onclick="openEquipConfig('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-sliders"></i> Acessar página de configuração</button>`);
-      if (n.type === 'boxtv') acts.push(`<button onclick="openBoxTv('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-tv"></i> Abrir o Box TV</button>`);
+      if (isIpBox(n)) acts.push(`<button onclick="openBoxTv('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-tv"></i> Abrir ${n.type === 'soundbox' ? 'a Sound Box' : 'o Box TV'}</button>`);
       if (isCoaxTv(n)) acts.push(`<button onclick="openBoxTv('${esc(n.id)}')" class="dev-main"><i class="fa-solid fa-tv"></i> Abrir o ${n.type === 'tv' ? 'decoder' : 'Box TV'}</button>`);
       return `
         ${st ? `<div class="space-y-1.5">${st}</div>` : ''}
@@ -4143,7 +4169,7 @@
       if (isNetDev(n)) {
         const c = inputConn(n.id);
         return `${c ? `<button data-id="${esc(c.id)}" onclick="selectConnection(this.dataset.id)" class="dev-main"><i class="fa-solid fa-link"></i> Ver a ligação (${esc(gponCableLabel(c))})</button>` : ''}
-          ${n.type === 'boxtv' ? ecoBoxPanelHTML(n) : ''}`;
+          ${isIpBox(n) ? ecoBoxPanelHTML(n) : ''}`;
       }
       return `${gwLanHTML(n)}${isEcoEquip(n) ? ecoNetsHTML(n) : ''}${iotPanelHTML(n)}`;
     }
@@ -4176,7 +4202,7 @@
               <ul class="space-y-1.5">${d.suggestions.map(s => suggestionHTML(s, true)).join('')}</ul>
             </div>` : ''}
         </div>
-        ${semPonto ? `<details class="niveis border-t border-slate-800 pt-1"><summary class="text-slate-400"><span><i class="fa-solid fa-chevron-right chev"></i>Caminho desde ${isGpon() ? 'o DIO/NAP' : 'o TAP'}</span></summary>${pathTableHTML(n, keys)}</details>` : pathTableHTML(n, keys)}
+        ${semPonto ? `<details class="niveis border-t border-slate-800 pt-1"><summary class="text-slate-400"><span><i class="fa-solid fa-chevron-right chev"></i>Caminho desde ${optCtx(n) ? 'o DIO/NAP' : 'o TAP'}</span></summary>${pathTableHTML(n, keys)}</details>` : pathTableHTML(n, keys)}
       `;
     }
 
@@ -4218,8 +4244,8 @@
           <p class="text-[10px] text-slate-400 mt-1">No mapa, arraste a alça azul acima da peça para girar com o mouse.</p>
         </div>
         <div class="border-t border-slate-800 pt-2">
-          ${!isGpon() && lv && originOf(n) ? pointSignalsHTML(n, 'Nível na entrada (IN) · editável') : `<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Nível na entrada (IN)</label>`}
-          ${!isGpon() && lv && originOf(n) ? '' : lv ? `
+          ${!optCtx(n) && lv && originOf(n) ? pointSignalsHTML(n, 'Nível na entrada (IN) · editável') : `<label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Nível na entrada (IN)</label>`}
+          ${!optCtx(n) && lv && originOf(n) ? '' : lv ? `
             <div class="grid grid-cols-4 gap-1 font-mono text-[10px] text-center">
               ${['ca', 'cb', 'rx', 'tx'].map(k => `<div class="bg-slate-950 border border-slate-800 rounded p-1"><span class="block text-slate-400">${k.toUpperCase()}</span><strong class="text-slate-200">${fmt(lv[k])}</strong></div>`).join('')}
             </div>` : `<p class="text-[11px] text-slate-400">Sem sinal: a entrada não está ligada a um TAP.</p>`}
@@ -4361,7 +4387,7 @@
             ${isEndpoint(n) ? endpointPropsHTML(n) : ''}
             ${isNetDev(n) ? netDevPanelHTML(n) : ''}
             ${TV_MODELS_BY[n.type] ? tvModelPanelHTML(n) : ''}
-            ${n.type === 'boxtv' ? ecoBoxPanelHTML(n) : ''}
+            ${isIpBox(n) ? ecoBoxPanelHTML(n) : ''}
             ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
             ${isEcoEquip(n) ? ecoPanelHTML(n) : ''}
             ${isGateway(n) ? iotPanelHTML(n) : ''}
@@ -4709,8 +4735,8 @@
     }
     // Box TV via HFC e Decoder (coaxial): o box recebe CA/CB/RX/TX do ponto; o Wi-Fi (apps) vem do EMTA do projeto, se houver
     const isCoaxTv = n => !!n && (n.type === 'box' || n.type === 'tv');
-    const isBoxSim = n => !!n && (n.type === 'boxtv' || isCoaxTv(n));
-    const TV_MODEL_DEFAULT = { boxtv: 'S4KCW3', box: 'S4KCW3', tv: 'SAG4KC363' };   // genérico abre neste modelo no simulador do box
+    const isBoxSim = n => isIpBox(n) || isCoaxTv(n);
+    const TV_MODEL_DEFAULT = { boxtv: 'S4KCW3', box: 'S4KCW3', tv: 'SAG4KC363', soundbox: 'S4KCW4S' };   // genérico abre neste modelo no simulador do box
     function ecoCoaxPayload(n) {
       if (!n.ecoKey) n.ecoKey = uid('eco');
       const lv = n.lv || {}, g = nodes.find(isGateway), b = n.ecoBox || {}, nets = ecoNets(g);
@@ -4726,7 +4752,7 @@
       if (!n.ecoKey) n.ecoKey = uid('eco');
       const c = inputConn(n.id), g = c && byId(c.from), b = n.ecoBox || {};
       const nets = ecoNets(g);
-      return { v: 1, key: n.ecoKey, name: n.name, ...(tvModel(n) ? { modelo: n.model } : {}), gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
+      return { v: 1, key: n.ecoKey, name: n.name, ...(tvModel(n) || n.type === 'soundbox' ? { modelo: tvModel(n) || TV_MODEL_DEFAULT.soundbox } : {}), gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
         link: c && c.cableType === 'Wi-Fi' ? 'wifi' : 'cabo', ...(c && c.cableType === 'Wi-Fi' && sigVal(c.rssi) != null ? { rssi: sigVal(c.rssi) } : {}), nets: nets ? nets.map(w => ({ ssid: w.ssid, band: w.band, sec: w.sec, pass: w.pass, iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : null,
         ...(b.done && b.conn ? { done: true, conn: b.conn, ...(b.conn === 'wifi' ? { ssid: b.ssid || '', pass: b.pass || '' } : {}) } : {}),
         o: /^https?:$/.test(location.protocol) ? location.origin : '*' };
@@ -4764,7 +4790,7 @@
       return `
         <div class="border-t border-slate-800 pt-2 space-y-1.5">
           <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Box TV (simulador)</label>
-          <button onclick="openBoxTv('${esc(n.id)}')" class="w-full text-xs font-bold rounded-lg px-2 py-2" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-tv"></i> Abrir o Box TV</button>
+          <button onclick="openBoxTv('${esc(n.id)}')" class="w-full text-xs font-bold rounded-lg px-2 py-2" style="color:#0f172a;background:#38bdf8"><i class="fa-solid fa-tv"></i> Abrir ${n.type === 'soundbox' ? 'a Sound Box' : 'o Box TV'}</button>
           <div class="text-[11px] text-slate-400 leading-snug">${!isGateway(g) ? `Ligue o box ${GW().na} (Wi-Fi ou cabo) para abrir.` : ecoNets(g) ? `Instalação do box com as redes ${g.type === 'modem' ? 'do' : 'da'} ${esc(g.name)}${c.cableType === 'Wi-Fi' ? '' : ' (pelo cabo de rede)'}.` : `Configure ${g.type === 'modem' ? 'o' : 'a'} ${esc(g.name)} primeiro para o box ver as redes dela; sem isso ele usa a rede de treino.`}</div>
           ${b ? `<div class="text-[11px] text-slate-300 leading-snug bg-slate-950/60 border border-slate-800 rounded-lg px-2 py-1.5">
             <b class="text-slate-200">Box:</b> ${b.done ? 'instalação concluída' : 'instalação em andamento'}${b.conn ? ` · ${b.conn === 'wifi' ? 'Wi-Fi ' + esc(b.ssid || '') : 'cabo de rede'}` : ''} · <span class="${b.online ? 'text-emerald-400' : 'text-amber-300'}">${b.online ? 'com internet' : 'sem internet'}</span>
@@ -4974,7 +5000,7 @@
           ${c.cableType === 'RJ45' ? `<div>
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PONTO ULTRA · comprimento (m) · ${ultraCost(dev)}</label>
             <input type="number" min="1" max="${RJ45_MAX}" step="0.5" value="${esc(c.length)}" onchange="updateNetLength(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-mono font-bold">
-          </div>` : c.cableType === 'RJ45 1,5 m' ? `<p class="text-[11px] text-slate-400">Cabo RJ45 padrão de 1,5 m, conectores inclusos.</p>` : ecoNets(ont) && dev.type === 'boxtv' ? boxWifiHTML(c, ont, dev) : ecoNets(ont) ? wifiPickerHTML(c, ont, dev) : `<div class="grid grid-cols-2 gap-1.5">
+          </div>` : c.cableType === 'RJ45 1,5 m' ? `<p class="text-[11px] text-slate-400">Cabo RJ45 padrão de 1,5 m, conectores inclusos.</p>` : ecoNets(ont) && isIpBox(dev) ? boxWifiHTML(c, ont, dev) : ecoNets(ont) ? wifiPickerHTML(c, ont, dev) : `<div class="grid grid-cols-2 gap-1.5">
               <label class="block"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Rede</span>
                 <select onchange="updateWifi('band', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
                   <option value="5" ${c.band !== '2.4' ? 'selected' : ''}>5 GHz</option><option value="2.4" ${c.band === '2.4' ? 'selected' : ''}>2,4 GHz</option>
@@ -6372,7 +6398,7 @@
           <rect x="${n.x}" y="${n.y}" width="${sz.w}" height="${sz.h}" rx="10" fill="${tap ? '#f0f9ff' : '#f8fafc'}" stroke="${stroke}" stroke-width="2"/>
           <text x="${n.x + 12}" y="${n.y + 22}" font-size="13" font-weight="800" fill="#0f172a">${esc(n.name)}</text>
           <text x="${n.x + 12}" y="${n.y + 37}" font-size="9.5" fill="#475569">${tap ? `${isDG(n) ? 'DG · ' : isCTO(n) ? (isDIO(n) ? 'DIO · ' : 'NAP de ' + MOUNT_LABEL[napMount(n)].toLowerCase() + ' · ') + esc(n.tec || 'GPON') + ' · ' : ''}Origem · ${tapVias(n)} ${isCTO(n) ? 'portas' : 'vias'} (${connections.filter(c => c.from === n.id).length} em uso)` : esc(EQUIP[n.type].label)}</text>
-          ${isGpon() ? gponReportLines(n, d) : line('ca', 'cb', n.y + 58) + line('rx', 'tx', n.y + 76)}
+          ${optCtx(n) ? gponReportLines(n, d) : line('ca', 'cb', n.y + 58) + line('rx', 'tx', n.y + 76)}
           ${tap ? (originAlert(n) ? `<text x="${n.x + sz.w - 10}" y="${n.y + sz.h - 10}" font-size="10" font-weight="800" fill="#d97706" text-anchor="end">${isCTO(n) ? 'ALERTA NAP' : 'ALERTA TX'}</text>` : '') : `<text x="${n.x + sz.w - 10}" y="${n.y + sz.h - 10}" font-size="10" font-weight="800" fill="${stroke}" text-anchor="end">${ST[d.status].report}</text>`}
         </g>`;
       });
@@ -6466,7 +6492,7 @@
         used.add(port.id);
         inputs.add(dst.id);
         const len = Number(c.length);
-        kept.push({ id: c.id || ('conn_' + i), from: src.id, fromPort: port.id, to: dst.id, ...(c.num ? { num: String(c.num).toUpperCase().replace(/[^0-9A-Z\- ]/g, '').slice(0, 8) } : {}), cableType: isNetCable(c.cableType) ? c.cableType : isGpon() ? (isGponCable(c.cableType) ? c.cableType : 'Drop') : isDG(src) ? DG_CABLE : (cableAttenuation[c.cableType] ? c.cableType : 'RG6'), length: isNaN(len) || len < 0 ? 10 : len, ...(c.cableType === 'Wi-Fi' ? { band: c.band === '2.4' ? '2.4' : '5', rssi: sigVal(c.rssi) == null ? '' : sigVal(c.rssi), ...(typeof c.ssid === 'string' && c.ssid ? { ssid: c.ssid.slice(0, 64), wpass: String(c.wpass || '').slice(0, 64) } : {}) } : {}), ...(isGpon() && !isNetCable(c.cableType) && c.cableType !== 'Cordão óptico' ? { conectores: Math.max(0, Math.min(20, Math.round(Number(c.conectores)) || 0)) } : {}) });
+        kept.push({ id: c.id || ('conn_' + i), from: src.id, fromPort: port.id, to: dst.id, ...(c.num ? { num: String(c.num).toUpperCase().replace(/[^0-9A-Z\- ]/g, '').slice(0, 8) } : {}), cableType: isNetCable(c.cableType) ? c.cableType : optCtx(src) ? (isGponCable(c.cableType) ? c.cableType : 'Drop') : isDG(src) ? DG_CABLE : (cableAttenuation[c.cableType] ? c.cableType : 'RG6'), length: isNaN(len) || len < 0 ? 10 : len, ...(c.cableType === 'Wi-Fi' ? { band: c.band === '2.4' ? '2.4' : '5', rssi: sigVal(c.rssi) == null ? '' : sigVal(c.rssi), ...(typeof c.ssid === 'string' && c.ssid ? { ssid: c.ssid.slice(0, 64), wpass: String(c.wpass || '').slice(0, 64) } : {}) } : {}), ...(optCtx(src) && !isNetCable(c.cableType) && c.cableType !== 'Cordão óptico' ? { conectores: Math.max(0, Math.min(20, Math.round(Number(c.conectores)) || 0)) } : {}) });
       });
       connections = kept;
       limits = { ...DEFAULT_LIMITS };   // níveis padrão fixos
