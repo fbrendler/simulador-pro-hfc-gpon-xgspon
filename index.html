@@ -533,7 +533,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.55';   // Versão Prévia
+    const APP_VERSION = '0.56';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1627,7 +1627,7 @@
         ] },
         { label: 'TV via HFC (coaxial)', items: [
           { type: 'tv', name: 'Decoder', tag: 'modelo', info: 'Decoder (coaxial): clique para escolher o modelo. Mede CA, CB, RX e TX; leva MINI ISOLATOR.' },
-          { type: 'box', name: 'Box TV via HFC', tag: 'modelo', info: 'Box TV via HFC (coaxial, RF CABLE): clique para escolher o modelo. Mede CA, CB, RX e TX.' }
+          { type: 'box', name: 'Box TV via HFC', tag: 'modelo', info: 'Box TV via HFC (coaxial, RF CABLE): clique para escolher o modelo. A TV vem pelo coaxial (mede CA e CB); a internet dos apps vem do EMTA por Wi-Fi ou cabo, escolhida no próprio box.' }
         ] },
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga no EMTA por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
@@ -2445,7 +2445,7 @@
         { key: 'cb', label: 'CB (canal baixo)', val: lv ? lv.cb : null, min: L.cbMin, max: Infinity, us: false },
         { key: 'rx', label: 'RX (DS)', val: lv ? lv.rx : null, min: L.rxMin, max: L.rxMax, us: false },
         { key: 'tx', label: 'TX (US)', val: lv ? lv.tx : null, min: L.txMin, max: L.txMax, us: true }
-      ];
+      ].filter(m => n.type !== 'box' || m.key === 'ca' || m.key === 'cb');   // Box TV via HFC: só CA e CB (a internet dos apps vem do EMTA, por Wi-Fi ou cabo)
     }
 
     function levelsGridHTML(d) {
@@ -3200,8 +3200,15 @@
           ${levelsGridHTML(d)}
           <div class="mt-2 flex justify-between items-center gap-1 text-[12px] [&>span]:text-[11px]">${fixChip(n)}${statusBadge(d.status)}</div>
           ${needsMini(n) ? `<button class="mini-lembrete" onclick="event.stopPropagation(); addMini('${esc(n.id)}')" onmousedown="event.stopPropagation()" title="O MINI ISOLATOR fica sempre entre o cabo e o equipamento"><i class="fa-solid fa-triangle-exclamation"></i> Falta MINI ISOLATOR · colocar</button>` : ''}
+          ${n.type === 'box' ? boxNetLine(n) : ''}
         </div>
       `;
+    }
+    // Box TV via HFC: a TV vem pelo coaxial (CA/CB); a internet dos apps vem do EMTA por Wi-Fi ou cabo, escolhida no próprio box
+    function boxNetLine(n) {
+      const b = n.ecoBox || {}, g = nodes.find(isGateway);
+      const t = b.conn === 'wifi' ? `Wi-Fi ${esc(b.ssid || '')}` : b.conn === 'cabo' ? 'cabo de rede' : b.conn === 'cm' ? 'cable modem interno' : null;
+      return `<div class="mt-1.5 text-[11px] leading-snug text-slate-400"><i class="fa-solid fa-globe"></i> Internet dos apps: ${t ? `<b class="text-slate-300">${t}</b> · <span class="${b.online ? 'text-emerald-400' : 'text-amber-300'}">${b.online ? 'online' : 'sem internet'}</span>` : g ? `conectar no box (Wi-Fi ou cabo ${g.type === 'modem' ? 'do' : 'da'} ${esc(g.name)})` : 'coloque um EMTA no projeto'}</div>`;
     }
 
     // RENDERIZADOR FIDEDIGNO DOS DIVISORES HOLLAND
@@ -4780,7 +4787,7 @@
       const n = byId(id), c = n && inputConn(n.id), g = c && byId(c.from);
       if (isCoaxTv(n)) {
         const url = ecoBoxUrl().replace(/#.*$/, '') + '#pro=' + ecoB64(ecoBoxPayload(n)), lv = n.lv;
-        openEcoFrame(id, url, `${n.name} · ${n.type === 'tv' ? 'Decoder' : 'Box TV via HFC'}`, lv && lv.rx != null ? `Sinal do projeto no ponto: CA ${fmt(lv.ca)} · CB ${fmt(lv.cb)} · RX ${fmt(lv.rx)} · TX ${fmt(lv.tx)} dBmV.` : 'Sem sinal no ponto: ligue o cabo coaxial no projeto.');
+        openEcoFrame(id, url, `${n.name} · ${n.type === 'tv' ? 'Decoder' : 'Box TV via HFC'}`, lv && lv.rx != null ? `Sinal do projeto no ponto: CA ${fmt(lv.ca)} · CB ${fmt(lv.cb)}${n.type === 'tv' ? ` · RX ${fmt(lv.rx)} · TX ${fmt(lv.tx)}` : ''} dBmV.${n.type === 'box' ? ' A internet dos apps vem do EMTA (Wi-Fi ou cabo), escolhida no box.' : ''}` : 'Sem sinal no ponto: ligue o cabo coaxial no projeto.');
         return;
       }
       if (!n || !isGateway(g)) { showToast(`Ligue o ${n ? n.name : 'Box TV'} ${GW().na} primeiro (Wi-Fi ou cabo de rede).`, 'warning'); return; }
@@ -6417,7 +6424,7 @@
           <rect x="${n.x}" y="${n.y}" width="${sz.w}" height="${sz.h}" rx="10" fill="${tap ? '#f0f9ff' : '#f8fafc'}" stroke="${stroke}" stroke-width="2"/>
           <text x="${n.x + 12}" y="${n.y + 22}" font-size="13" font-weight="800" fill="#0f172a">${esc(n.name)}</text>
           <text x="${n.x + 12}" y="${n.y + 37}" font-size="9.5" fill="#475569">${tap ? `${isDG(n) ? 'DG · ' : isCTO(n) ? (isDIO(n) ? 'DIO · ' : 'NAP de ' + MOUNT_LABEL[napMount(n)].toLowerCase() + ' · ') + esc(n.tec || 'GPON') + ' · ' : ''}Origem · ${tapVias(n)} ${isCTO(n) ? 'portas' : 'vias'} (${connections.filter(c => c.from === n.id).length} em uso)` : esc(EQUIP[n.type].label)}</text>
-          ${optCtx(n) ? gponReportLines(n, d) : line('ca', 'cb', n.y + 58) + line('rx', 'tx', n.y + 76)}
+          ${optCtx(n) ? gponReportLines(n, d) : line('ca', 'cb', n.y + 58) + (n.type === 'box' ? '' : line('rx', 'tx', n.y + 76))}
           ${tap ? (originAlert(n) ? `<text x="${n.x + sz.w - 10}" y="${n.y + sz.h - 10}" font-size="10" font-weight="800" fill="#d97706" text-anchor="end">${isCTO(n) ? 'ALERTA NAP' : 'ALERTA TX'}</text>` : '') : `<text x="${n.x + sz.w - 10}" y="${n.y + sz.h - 10}" font-size="10" font-weight="800" fill="${stroke}" text-anchor="end">${ST[d.status].report}</text>`}
         </g>`;
       });
