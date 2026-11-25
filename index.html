@@ -442,7 +442,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.43';   // Versão Prévia
+    const APP_VERSION = '0.44';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -4406,7 +4406,7 @@
       const c = inputConn(n.id), g = c && byId(c.from), b = n.ecoBox || {};
       const nets = ecoNets(g);
       return { v: 1, key: n.ecoKey, name: n.name, gw: g ? g.name : '', gwOk: !!g && ['ok', 'warn'].includes(statusOf(g)),
-        link: c && c.cableType === 'Wi-Fi' ? 'wifi' : 'cabo', nets: nets ? nets.map(w => ({ ssid: w.ssid, band: w.band, sec: w.sec, pass: w.pass, iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : null,
+        link: c && c.cableType === 'Wi-Fi' ? 'wifi' : 'cabo', ...(c && c.cableType === 'Wi-Fi' && sigVal(c.rssi) != null ? { rssi: sigVal(c.rssi) } : {}), nets: nets ? nets.map(w => ({ ssid: w.ssid, band: w.band, sec: w.sec, pass: w.pass, iot: !!w.iot, ...(w.hidden ? { hidden: true } : {}) })) : null,
         ...(b.done && b.conn ? { done: true, conn: b.conn, ...(b.conn === 'wifi' ? { ssid: b.ssid || '', pass: b.pass || '' } : {}) } : {}),
         o: /^https?:$/.test(location.protocol) ? location.origin : '*' };
     }
