@@ -39,6 +39,8 @@ Simulador de projetos de rede coaxial (TV e banda larga HFC) e de fibra óptica 
 
 ## Publicação
 
+Pelo PC (mais simples): `& "C:\APPs\Simuladores\simulador-pro-hfc-gpon-xgspon\publicar-tudo.ps1"` atualiza (`git pull`) e publica os três simuladores com o login do wrangler já salvo no computador.
+
 Automática: a cada envio para a `main`, o GitHub Actions (`.github/workflows/publicar.yml`) publica o `index.html` no Cloudflare Pages (projeto `simulador-pro-hfc-gpon-xgspon`). Precisa dos segredos `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` no repositório.
 
 ## Arquivos
