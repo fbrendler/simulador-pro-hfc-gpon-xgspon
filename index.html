@@ -218,12 +218,12 @@
     html.light .gw-lan { background: #1e293b; } html.light .gw-nets { background: #f1f5f9; border-color: #cbd5e1; } html.light .gw-net { color: #0f172a; }
     html.light .gw-net + .gw-net { border-color: #cbd5e1; } html.light .gw-band { background: #e0f2fe; color: #0369a1; } html.light .gw-pass, html.light .gw-foot, html.light .gw-nets-off { color: #475569; }
     .port-wifi { display: flex; align-items: center; justify-content: center; font-size: 8px; color: #34d399; }
-    /* NAP (caixa azul de poste/cordoalha) e DIO (caixa interna escura) */
+    /* NAP (caixa azul de poste/cordoalha) e NAP MDU (caixa interna) */
     .nap-box { position: relative; border-radius: 0.9rem; padding: 0.6rem 0.7rem 1.35rem; color: #e2e8f0; font-size: 12px;
       background: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 3px, transparent 3px 9px), linear-gradient(180deg, #2459a3, #1b4380);
       border: 2px solid #0f2a52; box-shadow: 0 8px 22px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18); }
     .nap-box.nap-dio { background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 2px, transparent 2px 10px), linear-gradient(180deg, #27324a, #1a2236); border-color: #0b1020; }
-    /* DIO azul em pé (portas vermelhas na lateral esquerda) e NAP MDU (caixa escura em pé) */
+    /* DIO azul em pé (portas vermelhas na lateral esquerda) e NAP MDU (caixa branca em pé) */
     .nap-box.dio-azul { display: flex; flex-direction: column; padding-left: 2.3rem; background: linear-gradient(180deg, #23407a, #1a3263); border-color: #0f1f45; }
     .dio-azul .nap-head { margin-bottom: 0.3rem; } .dio-azul .nap-name i { color: #bfdbfe; } .dio-badge { align-self: flex-start; margin-bottom: 0.5rem; }
     .dio-azul .nap-row, .nap-box.nap-mdu .nap-row { flex-direction: column; align-items: stretch; gap: 0.3rem; } .dio-azul .nap-pot, .nap-box.nap-mdu .nap-pot { text-align: center; }
@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.70';   // Versão Prévia
+    const APP_VERSION = '0.71';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1404,8 +1404,8 @@
       if (!n || !isCTO(n)) return;
       const t = (n.tags || []).slice(0, 2), old0 = t[0];
       t[i] = String(val || '').trim().slice(0, 24);
-      if (isDIO(n) && t[i] && !/^MM/i.test(t[i])) { showToast('A etiqueta do DIO começa sempre com MM (ex.: MM.A195.03.03).', 'warning'); renderProperties(); return; }
-      if (!isDIO(n) && t[i] && /^MM/i.test(t[i])) { showToast('Etiqueta de NAP não começa com MM (MM é do DIO). Ex.: SNCAB 001.01.04.', 'warning'); renderProperties(); return; }
+      if (isDIO(n) && t[i] && !/^MM/i.test(t[i])) { showToast(`A etiqueta ${isMDU(n) ? 'da NAP MDU' : 'do DIO'} começa sempre com MM (ex.: MM.A195.03.03).`, 'warning'); renderProperties(); return; }
+      if (!isDIO(n) && t[i] && /^MM/i.test(t[i])) { showToast('Etiqueta de NAP não começa com MM (MM é do DIO e da NAP MDU). Ex.: SNCAB 001.01.04.', 'warning'); renderProperties(); return; }
       if (isDIO(n)) t[i] = t[i].toUpperCase();
       // mudou a 1ª: se a 2ª estava vazia ou seguia a sequência, acompanha (se foi editada à mão, fica como está)
       if (i === 0 && tapVias(n) === 16 && (!t[1] || t[1] === nextTag(old0))) t[1] = nextTag(t[0]);
@@ -1420,6 +1420,7 @@
       if (org === 'mdu') v = MDU_PORTAS;
       const cs = connections.filter(c => c.from === n.id);
       if (cs.length > v) { showToast(`Há ${cs.length} fibras ligadas: escolha uma origem com pelo menos ${cs.length} portas.`, 'warning'); return; }
+      if (org !== 'dio' && cs.some(c => isDioExp(n, c.fromPort))) { showToast('Este DIO tem NAP MDU ligada nas portas de expansão (09–12): desligue a expansão antes de trocar o tipo.', 'warning'); return; }
       const wasDefault = isDefaultCtoName(n.name);
       const eraDio = isDIO(n);
       if (org === 'dio' || org === 'mdu') n.org = org; else delete n.org;
@@ -1740,8 +1741,8 @@
         { label: 'Aparelhos na rede', items: ['smarttv', 'videogame', 'pc', 'notebook', 'camera'].map(t => ({ type: t, name: NET_DEV[t].label, tag: NET_DEV[t].wifiOnly ? 'rede IoT' : '', info: `${NET_DEV[t].label}: liga na ONT por Wi-Fi (escolha a rede e digite a senha) ou por PONTO ULTRA.` })) }
       ] },
       { id: 'origem', label: 'Origem', icon: 'fa-tower-cell', groups: [
-        { label: 'DIO', items: [{ type: 'dio12', name: 'DIO 12 portas', tag: 'dBm na porta', info: 'DIO azul (caixa em pé): 4 portas vermelhas na lateral esquerda (01–04), a entrada da fibra abaixo delas e 8 portas embaixo (05–12). Origem do sinal óptico; informe a potência medida (0 a −25 dBm). Fibra ligada no DIO leva fita autofusão.' }] },
-        { label: 'NAP MDU', items: [{ type: 'mdu8', name: 'NAP MDU 8 portas', tag: 'dBm na porta', info: 'NAP MDU (prédio, caixa em pé): origem do sinal óptico com 8 portas; informe a potência medida (0 a −25 dBm). Fibra ligada na NAP MDU leva fita autofusão.' }] },
+        { label: 'DIO', items: [{ type: 'dio12', name: 'DIO 12 portas', tag: 'dBm na porta', info: 'DIO azul (caixa em pé): portas 01–08 embaixo para os clientes; portas 09–12 vermelhas na lateral esquerda são de expansão (ligam a entrada E de uma NAP MDU, sempre em Drop Low Friction); entrada IN abaixo delas. Informe a potência medida (0 a −25 dBm) ou digite a potência medida na ONT. Fibra ligada no DIO leva fita autofusão.' }] },
+        { label: 'NAP MDU', items: [{ type: 'mdu8', name: 'NAP MDU 8 portas', tag: 'dBm na porta', info: 'NAP MDU (prédio, caixa branca em pé): 8 portas embaixo e a entrada E vermelha; com DIO no projeto, entra como expansão ligada numa porta vermelha (09–12) do DIO. Cada NAP MDU tem o próprio sinal: informe a potência medida (0 a −25 dBm) ou digite a potência medida na ONT. Fibra ligada na NAP MDU leva fita autofusão.' }] },
         { label: 'NAP de poste (cada 8 portas = 1 NAP)', items: CTO_VIAS.map(v => ({ type: 'cto' + v, name: `NAP poste ${v}`, tag: `${v} portas`, info: `NAP de poste, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa em pé presa no poste com cinta. Informe a potência medida (0 a −25 dBm).` })) },
         { label: 'NAP de cordoalha', items: CTO_VIAS.map(v => ({ type: 'ctoc' + v, name: `NAP cordoalha ${v}`, tag: `${v} portas`, info: `NAP de cordoalha, ${v} portas${v === 16 ? ' (2 NAPs de 8)' : ''}: caixa deitada presa na cordoalha. Informe a potência medida (0 a −25 dBm).` })) }
       ] }
@@ -3784,7 +3785,7 @@
       const dt = Math.min(0.35, 22 / len);
       return tapeEnds(c).map(end => ({ ...bezierAt(a, g, b, end === 0 ? dt : 1 - dt), end }));
     }
-    const tapeText = (c, end) => `Fita autofusão obrigatória no conector ${end === 0 ? 'do DIO (' + ((byId(c.from) || {}).name || 'CTO') + ')' : 'da ONT'}.`;
+    const tapeText = (c, end) => `Fita autofusão obrigatória no conector ${end === 0 ? (isMDU(byId(c.from)) ? 'da NAP MDU (' : 'do DIO (') + ((byId(c.from) || {}).name || 'CTO') + ')' : 'da ONT'}.`;
     const tapeSVGString = (c, dots) => dots.map(q => `<circle cx="${q.x.toFixed(1)}" cy="${q.y.toFixed(1)}" r="5" fill="#facc15" stroke="#854d0e" stroke-width="1.5"><title>${esc(tapeText(c, q.end))}</title></circle>`).join('');
     function bezierAt(a, g, b, t) {
       const u = 1 - t;
@@ -4008,7 +4009,7 @@
     function buildClip(ids) {
       const set = new Set(ids);
       return {
-        nodes: ids.map(byId).filter(Boolean).map(n => ({ old: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, vias: n.vias, model: n.model, inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), signals: JSON.parse(JSON.stringify(n.signals || {})) })),
+        nodes: ids.map(byId).filter(Boolean).map(n => ({ old: n.id, type: n.type, name: n.name, x: n.x, y: n.y, rot: n.rot || 0, vias: n.vias, model: n.model, ...(n.org ? { org: n.org } : {}), ...(n.tec ? { tec: n.tec } : {}), ...(n.mount ? { mount: n.mount } : {}), ...(Array.isArray(n.tags) ? { tags: n.tags.slice() } : {}), inSide: n.inSide || 'auto', outSide: n.outSide || 'auto', ...(n.iot ? { iot: true } : {}), signals: JSON.parse(JSON.stringify(n.signals || {})) })),
         conns: connections.filter(c => set.has(c.from) && set.has(c.to)).map(c => ({ ...c }))
       };
     }
@@ -4025,13 +4026,13 @@
       const okModo = t => isGpon() ? (t === 'ont' || isOptPassive(t) || !!NET_DEV[t] || t === 'tap') : true;   // HFC aceita as peças da migração para GPON
       const motivos = new Set();
       clip.nodes.forEach(c => {
-        if (c.type === 'tap' && (c.model === 'cto' ? optOrigin() : coaxOrigin())) { skipped = true; return; }   // uma origem de cada (TAP/DG e DIO/NAP)
+        if (c.type === 'tap' && !(c.org === 'mdu' && nodes.some(isDioAzul)) && (c.model === 'cto' ? optOrigin() : coaxOrigin())) { skipped = true; return; }   // uma origem de cada (TAP/DG e DIO/NAP)
         if (!okModo(c.type)) { motivos.add(`peças de outro modo não entram no ${isGpon() ? 'GPON' : 'HFC'}`); return; }
         if (!isGpon() && TV_KIND[c.type] && projectTvKind() && projectTvKind() !== TV_KIND[c.type]) { motivos.add(`as TVs do projeto são todas via ${projectTvKind() === 'hfc' ? 'HFC' : 'IP'}`); return; }
         const id = uid('node');
         map[c.old] = id;
         const name = (c.type === 'tv' || c.type === 'box') ? nextNumberedName(EQUIP[c.type].name) : NET_DEV[c.type] ? nextNumberedName(NET_DEV[c.type].name) : c.type === 'ont' ? nextNumberedName('ONT') : c.name;
-        nodes.push({ id, type: c.type, name, x: Math.max(0, c.x + off), y: Math.max(0, c.y + off), rot: c.rot, ...(c.type === 'tap' ? { vias: c.vias, ...(c.model ? { model: c.model } : {}) } : {}), ...((c.type === 'ont' && ONT_MODELS[c.model]) || tvModelOk(c.type, c.model) ? { model: c.model } : {}), inSide: c.inSide, outSide: c.outSide, signals: JSON.parse(JSON.stringify(c.signals)) });
+        nodes.push({ id, type: c.type, name, x: Math.max(0, c.x + off), y: Math.max(0, c.y + off), rot: c.rot, ...(c.type === 'tap' ? { vias: c.vias, ...(c.model ? { model: c.model } : {}), ...(c.org ? { org: c.org } : {}), ...(c.tec ? { tec: c.tec } : {}), ...(c.mount ? { mount: c.mount } : {}), ...(c.tags ? { tags: c.tags.slice() } : {}) } : {}), ...((c.type === 'ont' && ONT_MODELS[c.model]) || tvModelOk(c.type, c.model) ? { model: c.model } : {}), inSide: c.inSide, outSide: c.outSide, signals: JSON.parse(JSON.stringify(c.signals)) });
         newIds.push(id);
       });
       // Ligações: só entre peças coladas; respeita o limite de 3 pontos de TV por ONT/EMTA
