@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.65';   // Versão Prévia
+    const APP_VERSION = '0.66';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1140,7 +1140,7 @@
       }
       if (metrics.some(m => m.val == null)) {
         metrics.forEach(m => m.st = 'none');
-        return { status: 'none', metrics, notes: ['Potência do DIO/NAP ainda não informada: preencha no painel da origem (ex.: −20 dBm).'], suggestions: [], summary: '' };
+        return { status: 'none', metrics, notes: ['Potência do DIO/NAP ainda não informada: preencha no painel da caixa (ex.: −20 dBm) ou digite a potência medida na ONT (aba Editar).'], suggestions: [], summary: '' };
       }
       let status = 'ok';
       metrics.forEach(m => { m.st = evalMetric(m.val, m.min, m.max, m.warnBelow); if (ST_RANK[m.st] > ST_RANK[status]) status = m.st; });
@@ -2501,7 +2501,7 @@
             L = { min: pv, max: pv };
           }
           dest.lv = { min: L.min == null ? null : L.min - cl.min - p, max: L.max == null ? null : L.max - cl.max - p };
-          dest.path = node.path.slice();
+          dest.path = isCTO(node) ? [] : node.path.slice();   // cada DIO/NAP tem o próprio sinal: o caminho começa nela
           if (node.type !== 'tap') dest.path.push({ kind: 'port', nodeId: node.id, portId: conn.fromPort, loss: { min: p, max: p } });
           dest.path.push({ kind: 'cable', connId: conn.id, loss: cl });
           seen.add(dest.id);
@@ -4194,6 +4194,45 @@
       }
       return null;
     }
+    // GPON: DIO/NAP que alimenta a ONT (a caixa mais próxima subindo pelas fibras) e a porta usada
+    function optBaseOf(n) {
+      let cur = n, guard = 0;
+      while (cur && guard++ < 1000) {
+        const c = inputConn(cur.id);
+        if (!c) return null;
+        const up = byId(c.from);
+        if (isCTO(up)) return { org: up, key: potKey(Number(String(c.fromPort).replace('out', ''))) };
+        cur = up;
+      }
+      return null;
+    }
+    // Potência medida na ONT: calcula a potência da porta do DIO/NAP (perda média do caminho) e recalcula
+    function updateOntPower(val) {
+      const n = byId(selectedNodeId);
+      if (!n || n.type !== 'ont') return;
+      const v = parseFloat(String(val).replace(',', '.'));
+      if (isNaN(v)) { renderProperties(); return; }
+      const b = optBaseOf(n);
+      if (!b) { showToast('Esta ONT não está ligada a um DIO/NAP.', 'warning'); renderProperties(); return; }
+      const lmin = (n.path || []).reduce((t, st) => t + st.loss.min, 0), lmax = (n.path || []).reduce((t, st) => t + st.loss.max, 0);
+      b.org.signals = b.org.signals || {};
+      b.org.signals[b.key] = Math.round((v + (lmin + lmax) / 2) * 100) / 100;
+      refresh();
+      showToast(`Potência na ${n.name} = ${fmt(v)} dBm: a porta da ${b.org.name} ficou em ${fmt2(b.org.signals[b.key])} dBm e a instalação foi recalculada.`, 'info');
+      const al = originAlert(b.org);
+      if (al) setTimeout(() => showToast(al.text, 'warning'), 3600);
+    }
+    function ontPowerHTML(n) {
+      const b = optBaseOf(n);
+      if (!b) return `<div class="border-t border-slate-800 pt-2"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Potência medida na ONT</label><p class="text-[11px] text-slate-400">Ligue a ONT a um DIO/NAP para informar a potência medida.</p></div>`;
+      const lv = n.lv, med = lv && lv.min != null && lv.max != null ? (lv.min + lv.max) / 2 : null;
+      return `
+        <div class="border-t border-slate-800 pt-2 space-y-1.5">
+          <label class="text-[10px] font-bold text-sky-400 uppercase tracking-wider block">Potência medida na ONT (dBm)</label>
+          <input type="number" step="0.1" value="${med == null ? '' : med.toFixed(2)}" placeholder="ex.: −21,5" onchange="updateOntPower(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-sky-400 font-mono font-bold focus:outline-none focus:border-sky-500">
+          <p class="text-[10px] text-slate-400 leading-snug">Cada DIO/NAP tem o próprio sinal: informe no painel da ${esc(b.org.name)} ou digite aqui o valor medido na ONT, e o simulador calcula a potência da porta da ${esc(b.org.name)}.</p>
+        </div>`;
+    }
     // Sinal medido/digitado no ponto: ajusta o nível da origem e recalcula toda a instalação
     function updatePointSignal(key, val) {
       const n = byId(selectedNodeId);
@@ -4328,7 +4367,7 @@
           <input type="text" value="${esc(n.name)}" onchange="updateNodeName(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold focus:outline-none focus:border-sky-500">
         </div>
         ${TV_MODELS_BY[n.type] ? tvModelPanelHTML(n) : ''}
-        ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
+        ${n.type === 'ont' ? ontModelPanelHTML(n) + ontPowerHTML(n) : ''}
         ${isEndpoint(n) && n.type !== 'ont' ? pointSignalsHTML(n) : ''}`;
     }
     function endpointPropsHTML(n, semPonto) {
@@ -4536,7 +4575,7 @@
             ${isNetDev(n) ? netDevPanelHTML(n) : ''}
             ${TV_MODELS_BY[n.type] ? tvModelPanelHTML(n) : ''}
             ${isIpBox(n) ? ecoBoxPanelHTML(n) : ''}
-            ${n.type === 'ont' ? ontModelPanelHTML(n) : ''}
+            ${n.type === 'ont' ? ontModelPanelHTML(n) + ontPowerHTML(n) : ''}
             ${isEcoEquip(n) ? ecoPanelHTML(n) : ''}
             ${isGateway(n) ? iotPanelHTML(n) : ''}
             ${isOptPassive(n.type) ? splPropsHTML(n) : NODE_DEFS[n.type] ? passivePropsHTML(n) : ''}
