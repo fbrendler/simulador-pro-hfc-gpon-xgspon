@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.66';   // Versão Prévia
+    const APP_VERSION = '0.67';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -3665,6 +3665,7 @@
     function numerador(c) {
       const f = byId(c.from);
       if (!f || f.type !== 'tap' || isNetCable(c.cableType)) return null;
+      if (isDioExp(f, c.fromPort)) return null;   // expansão DIO → NAP MDU: sem numerador
       const porta = Number(String(c.fromPort).replace('out', ''));
       if (!porta) return null;
       const cor = isCTO(f) ? (isDIO(f) ? 'amarelo' : napMount(f) === 'cordoalha' ? 'preto' : 'amarelo') : isDG(f) ? 'amarelo' : 'preto';
