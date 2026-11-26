@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.71';   // Versão Prévia
+    const APP_VERSION = '0.72';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -3677,7 +3677,7 @@
     function tapeEnds(c) {
       if (!isGponCable(c.cableType) || isNetCable(c.cableType) || c.cableType === 'Cordão óptico') return [];
       const ends = [];
-      if (isDIO(byId(c.from))) ends.push(0);
+      if (isDIO(byId(c.from)) && !isDioExp(byId(c.from), c.fromPort)) ends.push(0);   // expansão DIO → NAP MDU: sem fita
       if (byId(c.to) && byId(c.to).type === 'ont') ends.push(1);
       return ends;
     }
