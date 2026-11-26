@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.69';   // Versão Prévia
+    const APP_VERSION = '0.70';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1506,21 +1506,19 @@
       openScenarioView(true);   // posições escolhidas para as etiquetas não ficarem atrás da CTO
     }
 
-    // Exemplo de prédio: DIO 12 → porta 09 (expansão, Drop LF) → NAP MDU → drop → PTO → cordão → ONT
+    // Exemplo de prédio: DIO 12 → porta 09 (expansão, Drop LF) → NAP MDU → fibra branca (Micro Low) direto na ONT
     function loadScenarioGponPredio() {
       setActiveScenario(null);
       setModeQuiet('gpon');
       nodes = [
         { id: 'mdu', type: 'tap', model: 'cto', org: 'mdu', tec: 'GPON', name: ctoName(MDU_PORTAS, 'mdu'), vias: MDU_PORTAS, x: 24, y: 30, tags: [DIO_TAG_PADRAO], signals: { pot: -19 } },
         { id: 'dio', type: 'tap', model: 'cto', org: 'dio', tec: 'GPON', name: ctoName(DIO_PORTAS, 'dio'), vias: DIO_PORTAS, x: 360, y: 340, tags: ['MM.A195.03.01'], signals: { pot: -18 } },
-        { id: 'pto', type: 'pto', name: 'PTO', x: 640, y: 120, signals: {} },
-        { id: 'ont', type: 'ont', name: 'ONT 1', model: 'f6645p', x: 820, y: 300, signals: {} },
-        { id: 'tv1', type: 'boxtv', name: 'Decoder 1', model: 'Z4KCW6', x: 1120, y: 360, signals: {} }
+        { id: 'ont', type: 'ont', name: 'ONT 1', model: 'f6645p', x: 720, y: 140, signals: {} },
+        { id: 'tv1', type: 'boxtv', name: 'Decoder 1', model: 'Z4KCW6', x: 1040, y: 200, signals: {} }
       ];
       connections = [
         { id: 'p0', from: 'dio', fromPort: 'out9', to: 'mdu', cableType: 'Drop', length: 15, conectores: 2 },   // expansão: sem numerador
-        { id: 'p1', from: 'mdu', fromPort: 'out8', to: 'pto', cableType: 'Drop', length: 20, conectores: 2 },
-        { id: 'p2', from: 'pto', fromPort: 'out', to: 'ont', cableType: 'Cordão óptico', length: 1.5 }
+        { id: 'p1', from: 'mdu', fromPort: 'out8', to: 'ont', cableType: 'Micro Low', length: 20, conectores: 2 }   // fibra branca direto na ONT, sem PTO
       ];
       openScenarioView(true);
     }
@@ -6007,7 +6005,7 @@
         ${nodes.length ? `<button onclick="saveMapAsScenario()" class="w-full text-left mt-1 px-3 py-1.5 rounded-lg hover:bg-slate-800 text-[11px] text-slate-300 flex items-center gap-2"><i class="fa-solid fa-floppy-disk text-slate-400"></i> ou salvar o mapa atual como cenário</button>` : ''}
         <div class="mt-1 pt-1 border-t border-slate-800 space-y-0.5">
           ${isGpon() ? example(1, 'Cenário 1 GPON', 'NAP −20 dBm · drop 2 conectores · PTO · cordão · ONT · Box TV', 'loadScenarioGpon1')
-              + example('<i class="fa-solid fa-building text-[10px]"></i>', 'Cenário 1 GPON · Prédio', 'DIO 12 → expansão (porta 09) → NAP MDU −19 dBm → PTO → ONT', 'loadScenarioGponPredio')
+              + example('<i class="fa-solid fa-building text-[10px]"></i>', 'Cenário 1 GPON · Prédio', 'DIO 12 → expansão (porta 09) → NAP MDU −19 dBm → fibra branca → ONT', 'loadScenarioGponPredio')
             : example(1, 'Cenário 1 HFC', 'DG · DC 9 · divisor 1/2 · mini isolators', 'loadScenario1')}
           ${mine}
         </div>`;
