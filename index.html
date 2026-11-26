@@ -554,7 +554,7 @@
 
   <!-- JAVASCRIPT LOGIC -->
   <script>
-    const APP_VERSION = '0.67';   // Versão Prévia
+    const APP_VERSION = '0.68';   // Versão Prévia
     document.getElementById('sig-versao').textContent = 'Versão Prévia ' + APP_VERSION;
     // Cópia do arquivo como foi aberto (antes de qualquer desenho na tela): base para "Salvar HTML offline"
     const PRISTINE_HTML = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
@@ -1314,7 +1314,7 @@
           ${numeradorEditorHTML(c, src)}
           <div>
             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Tipo</label>
-            <select onchange="updateCableType(this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
+            <select onchange="updateCableType(this.value)" ${isDioExp(src, c.fromPort) ? 'disabled title="Fibra de expansão: sempre Drop Low Friction"' : ''} class="w-full bg-slate-950 border border-slate-700 rounded-lg p-1.5 text-xs text-slate-200 font-semibold">
               ${Object.keys(GPON_CABLES).map(t => `<option value="${t}" ${t === c.cableType ? 'selected' : ''}>${GPON_CABLES[t].name}</option>`).join('')}
             </select>
           </div>
@@ -2254,6 +2254,10 @@
       if (isDG(byId(linkSource.nodeId)) && cableType !== DG_CABLE) {
         cableType = DG_CABLE;
         showToast('No DG só é permitido cabo RG6 Branco: o cabo será RG6 Branco.', 'warning');
+      }
+      if (gp && isDioExp(srcN, linkSource.portId) && cableType !== 'Drop') {   // expansão DIO → NAP MDU: sempre Drop Low Friction
+        cableType = 'Drop';
+        showToast('Fibra de expansão (DIO → NAP MDU): sempre Drop Low Friction (cinza).', 'info');
       }
       if (gp && cableType === 'Cordão óptico') {   // cordão óptico: tamanho fixo, liga direto
         const conn = { id: uid('conn'), from: linkSource.nodeId, fromPort: linkSource.portId, to: targetId, cableType, length: CORDAO_M };
@@ -4742,6 +4746,11 @@
         return;
       }
       if (c && isNetCable(val)) { setNetLinkType(c, val); return; }
+      if (c && val !== 'Drop' && isDioExp(byId(c.from), c.fromPort)) {
+        showToast('Fibra de expansão (DIO → NAP MDU): sempre Drop Low Friction (cinza).', 'warning');
+        renderProperties();
+        return;
+      }
       if (c && val !== 'RG6' && byId(c.from) && byId(c.from).type === 'iso') {
         showToast('Depois do CABLE ISOLATOR o cabo é sempre RG6 Branco.', 'warning');
         renderProperties();
@@ -5644,6 +5653,7 @@
       limits = { ...DEFAULT_LIMITS };
       if (st.limits) Object.keys(DEFAULT_LIMITS).forEach(k => { const v = Number(st.limits[k]); if (!isNaN(v) && k !== 'margin') limits[k] = v; });
       normalizeProject();
+      connections.forEach(c => { if (isDioExp(byId(c.from), c.fromPort)) c.cableType = 'Drop'; });   // expansão: sempre Drop LF
       tvDecoderNames();
       resetView();
     }
